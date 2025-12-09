@@ -26,3 +26,8 @@
 2025-12-04 20:54:00:540 info: 👷 Workers started
 2025-12-04 20:54:00:540 info: 🚀 Application started successfully
 2025-12-04 20:54:06:546 error: Error occurred
+2025-12-09 09:02:38:238 info: 🚀 Server running on port 3000 in development mode
+2025-12-09 09:02:38:238 info: Running on http://localhost:3000/
+2025-12-09 09:02:38:238 info: 👷 Workers started
+2025-12-09 09:02:38:238 info: 🚀 Application started successfully
+2025-12-09 09:02:42:242 error: Error occurred
