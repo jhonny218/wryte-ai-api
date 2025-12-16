@@ -6,3 +6,8 @@ node_modules
 
 # Planning
 Planning
+
+# Logs
+logs
+*.log
+npm-debug.log*
