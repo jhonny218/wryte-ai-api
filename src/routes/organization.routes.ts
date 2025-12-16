@@ -1,8 +1,8 @@
 import { Router } from 'express'
-import { organizationController } from 'src/controllers/organization.controller';
-import { requireAuth } from 'src/middleware/auth.middleware';
-import { validate } from 'src/middleware/validation.middleware';
-import { createOrganizationSchema, updateOrganizationSchema } from 'src/validators/organization.validator';
+import { organizationController } from '../controllers/organization.controller';
+import { requireAuth } from '../middleware/auth.middleware';
+import { validate } from '../middleware/validation.middleware';
+import { createOrganizationSchema, updateOrganizationSchema } from '../validators/organization.validator';
 
 const router = Router();
 

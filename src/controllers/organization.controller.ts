@@ -1,8 +1,8 @@
 import type { NextFunction, Request, Response } from "express";
 import { getAuth } from "@clerk/express";
-import { organizationService } from "src/services/organization.service";
-import { successResponse, createdResponse } from "src/utils/response";
-import { NotFoundError } from "src/utils/errors";
+import { organizationService } from "../services/organization.service";
+import { successResponse, createdResponse } from "../utils/response";
+import { NotFoundError } from "../utils/errors";
 
 class OrganizationController {
   async getAll(req: Request, res: Response, next: NextFunction) {

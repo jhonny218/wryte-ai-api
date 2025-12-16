@@ -1,6 +1,6 @@
 import type { NextFunction, Request, Response } from "express";
-import { settingsService } from "src/services/settings.service";
-import { successResponse } from "src/utils/response";
+import { settingsService } from "../services/settings.service";
+import { successResponse } from "../utils/response";
 
 class SettingsController {
   async upsert (req: Request, res: Response, next: NextFunction) {

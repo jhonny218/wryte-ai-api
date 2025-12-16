@@ -1,8 +1,8 @@
 import { Router } from 'express'
-import { settingsController } from 'src/controllers/settings.controller';
-import { requireAuth } from 'src/middleware/auth.middleware';
-import { validate } from 'src/middleware/validation.middleware';
-import { upsertContentSettingsSchema } from 'src/validators/settings.validator';
+import { settingsController } from '../controllers/settings.controller';
+import { requireAuth } from '../middleware/auth.middleware';
+import { validate } from '../middleware/validation.middleware';
+import { upsertContentSettingsSchema } from '../validators/settings.validator';
 
 const router = Router();
 

@@ -1,8 +1,8 @@
 import type { NextFunction, Request, Response } from "express";
 import { getAuth, clerkClient } from "@clerk/express";
-import { successResponse, createdResponse } from "src/utils/response";
-import { NotFoundError } from "src/utils/errors";
-import { userService } from "src/services/user.service";
+import { successResponse, createdResponse } from "../utils/response";
+import { NotFoundError } from "../utils/errors";
+import { userService } from "../services/user.service";
 
 class UserController {
   async create(req: Request, res: Response, next: NextFunction) {

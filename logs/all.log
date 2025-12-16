@@ -41,3 +41,13 @@
 2025-12-15 23:07:30:730 info: 👷 Workers started
 2025-12-15 23:07:30:730 info: 🚀 Application started successfully
 2025-12-15 23:07:34:734 error: Error occurred
+2025-12-15 23:11:28:1128 info: SIGTERM received, shutting down gracefully
+2025-12-15 23:11:29:1129 info: 🚀 Server running on port 3000 in development mode
+2025-12-15 23:11:29:1129 info: Running on http://localhost:3000/
+2025-12-15 23:11:29:1129 info: 👷 Workers started
+2025-12-15 23:11:29:1129 info: 🚀 Application started successfully
+2025-12-15 23:11:48:1148 info: SIGTERM received, shutting down gracefully
+2025-12-15 23:11:49:1149 info: 🚀 Server running on port 3000 in development mode
+2025-12-15 23:11:49:1149 info: Running on http://localhost:3000/
+2025-12-15 23:11:49:1149 info: 👷 Workers started
+2025-12-15 23:11:49:1149 info: 🚀 Application started successfully
