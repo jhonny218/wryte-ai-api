@@ -8,6 +8,7 @@ import { routes } from "./routes"
 import { errorMiddleware } from './middleware/error.middleware'
 import { loggingMiddleware } from './middleware/logging.middleware'
 import { env } from './config/env'
+import { pingDatabase } from './config/database'
 
 export const app = express();
 
@@ -23,6 +24,9 @@ app.use(compression())
 app.use(express.json({ limit: '10mb' }))
 app.use(express.urlencoded({ extended: true }))
 
+// Webhooks need raw body for signature verification
+app.use('/api/v1/webhooks', express.raw({ type: 'application/json' }))
+
 // Clerk middleware
 app.use(clerkMiddleware())
 
@@ -30,8 +34,15 @@ app.use(clerkMiddleware())
 app.use(loggingMiddleware)
 
 // Health check
-app.get('/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() })
+app.get('/health', async (req, res) => {
+  const timestamp = new Date().toISOString()
+  try {
+    const dbOk = await pingDatabase()
+    const status = dbOk ? 'ok' : 'degraded'
+    return res.status(dbOk ? 200 : 503).json({ status, timestamp, database: dbOk ? 'ok' : 'down' })
+  } catch (err) {
+    return res.status(500).json({ status: 'error', timestamp, database: 'unknown' })
+  }
 })
 
 // API routes

@@ -14,6 +14,7 @@ const envSchema = z.object({
   // Clerk
   CLERK_SECRET_KEY: z.string(),
   CLERK_PUBLISHABLE_KEY: z.string(),
+  CLERK_WEBHOOK_SECRET: z.string(),
 
   // OpenAI
   OPENAI_API_KEY: z.string(),
