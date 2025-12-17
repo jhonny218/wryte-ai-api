@@ -29,10 +29,18 @@ export function errorMiddleware(
 
   // Prisma errors
   if (err.name === 'PrismaClientKnownRequestError') {
+    const prismaError = err as any
+    logger.error('Prisma error details', {
+      code: prismaError.code,
+      meta: prismaError.meta,
+      message: prismaError.message
+    })
+    
     return res.status(400).json({
       error: {
         code: 'DATABASE_ERROR',
         message: 'Database operation failed',
+        details: process.env.NODE_ENV === 'development' ? prismaError.message : undefined,
         timestamp: new Date().toISOString()
       }
     })

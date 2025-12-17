@@ -1,11 +1,13 @@
 import { z } from 'zod'
+import { upsertContentSettingsSchema } from './settings.validator'
 
-// Organization creation schema
+// Organization creation schema (with optional nested content settings)
 export const createOrganizationSchema = z.object({
   name: z.string().min(1, 'Organization name is required').max(100, 'Name is too long'),
   mission: z.string().max(1000, 'Mission is too long').optional(),
   description: z.string().max(2000, 'Description is too long').optional(),
   websiteUrl: z.string().url('Invalid URL').optional().or(z.literal('')),
+  contentSettings: upsertContentSettingsSchema.optional(),
 })
 
 // Organization update schema

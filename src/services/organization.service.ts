@@ -26,7 +26,22 @@ class OrganizationService {
       }
     )
 
-    // 2. Create Org + Member + Empty Settings (Transaction)
+    // 2. Prepare content settings data (if provided)
+    const contentSettingsData = data.contentSettings ? {
+      primaryKeywords: data.contentSettings.primaryKeywords,
+      secondaryKeywords: data.contentSettings.secondaryKeywords || [],
+      frequency: data.contentSettings.frequency || null,
+      planningPeriod: data.contentSettings.planningPeriod || null,
+      tone: data.contentSettings.tone || null,
+      targetAudience: data.contentSettings.targetAudience || null,
+      industry: data.contentSettings.industry || null,
+      goals: data.contentSettings.goals || [],
+      competitorUrls: data.contentSettings.competitorUrls || [],
+      topicsToAvoid: data.contentSettings.topicsToAvoid || [],
+      preferredLength: data.contentSettings.preferredLength || null,
+    } : {}
+
+    // 3. Create Org + Member + Settings (Transaction)
     return await prisma.$transaction(async (tx) => {
       const org = await tx.organization.create({
         data: {
@@ -42,7 +57,14 @@ class OrganizationService {
             }
           },
           contentSettings: {
-            create: {}
+            create: contentSettingsData
+          }
+        },
+        include: {
+          contentSettings: true,
+          members: {
+            where: { userId },
+            select: { role: true }
           }
         }
       })

@@ -112,6 +112,22 @@ class UserController {
       next(error);
     }
   }
+
+  async getUserOrganizations(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { userId } = getAuth(req);
+
+      if (!userId) {
+        throw new NotFoundError('User not authenticated');
+      }
+
+      const organizations = await userService.getUserOrganizations(userId!);
+
+      return successResponse(res, organizations);
+    } catch (error) {
+      next(error);
+    }
+  }
 }
 
 export const userController = new UserController();

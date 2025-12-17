@@ -23,4 +23,7 @@ router.put('/me', validate(updateUserSchema), userController.update)
 // Delete current user
 router.delete('/me', userController.delete)
 
+// Get current user's organizations
+router.get('/me/organizations', userController.getUserOrganizations);
+
 export { router as userRoutes };

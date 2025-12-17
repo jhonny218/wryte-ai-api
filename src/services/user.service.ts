@@ -51,6 +51,35 @@ class UserService {
       where: { clerkId }
     })
   }
+
+  async getUserOrganizations(clerkId: string) {
+    const user = await prisma.user.findUnique({
+      where: { clerkId },
+      include: {
+        organizationMemberships: {
+          include: {
+            organization: true
+          },
+          orderBy: {
+            createdAt: 'asc'
+          }
+        }
+      }
+    });
+
+    if (!user) {
+      return null;
+    }
+
+    return {
+      hasOrganizations: user.organizationMemberships.length > 0,
+      organizations: user.organizationMemberships.map(membership => ({
+        ...membership.organization,
+        role: membership.role
+      })),
+      primaryOrganization: user.organizationMemberships[0]?.organization || null
+    }
+  }
 }
 
 export const userService = new UserService();
