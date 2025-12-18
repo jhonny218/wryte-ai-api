@@ -100,6 +100,33 @@ class OrganizationService {
     return { ...org, role: isMember.role }
   }
 
+  async findBySlug (userId: string, slug: string) {
+    const org = await prisma.organization.findUnique({
+      where: { slug },
+      include: {
+        contentSettings: true,
+      }
+    })
+
+    if (!org) return null
+
+    // Check membership
+    const isMember = await prisma.organizationMember.findUnique({
+      where: {
+        organizationId_userId: {
+          organizationId: org.id,
+          userId
+        }
+      }
+    })
+
+    if (!isMember) {
+      throw new ForbiddenError('You are not a member of this organization')
+    }
+
+    return { ...org, role: isMember.role }
+  }
+
   async update (userId: string, orgId: string, data: any) {
     // Check membership & role (must be ADMIN or OWNER)
     const membership = await prisma.organizationMember.findUnique({

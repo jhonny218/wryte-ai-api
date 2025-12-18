@@ -65,6 +65,26 @@ class OrganizationController {
     }
   }
 
+  async getBySlug(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { userId: clerkId } = getAuth(req)
+      const user = await userService.findByClerkId(clerkId!)
+      if (!user) throw new UnauthorizedError('User not found')
+      
+      const { slug } = req.params
+
+      const org = await organizationService.findBySlug(user.id, slug!)
+
+      if (!org) {
+        throw new NotFoundError('Organization not found')
+      }
+
+      return successResponse(res, org)
+    } catch (error) {
+      next(error)
+    }
+  }
+
   async update(req: Request, res: Response, next: NextFunction) {
     try {
       const { userId: clerkId } = getAuth(req)

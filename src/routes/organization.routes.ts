@@ -17,6 +17,9 @@ router.post('/', validate(createOrganizationSchema), organizationController.crea
 // Get organization by ID
 router.get('/:orgId', organizationController.getById)
 
+// Get organization by slug
+router.get('/slug/:slug', organizationController.getBySlug)
+
 // Update organization by ID
 router.put('/:orgId', validate(updateOrganizationSchema), organizationController.update)
 
