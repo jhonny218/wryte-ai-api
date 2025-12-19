@@ -5,12 +5,9 @@ export const upsertContentSettingsSchema = z.object({
   // Strategy
   primaryKeywords: z.array(z.string().min(1)).min(1, 'At least one primary keyword is required').max(10, 'Too many primary keywords'),
   secondaryKeywords: z.array(z.string().min(1)).max(20, 'Too many secondary keywords').optional().default([]),
-  frequency: z.enum(['DAILY', 'WEEKLY', 'BIWEEKLY', 'MONTHLY'], {
-    message: 'Invalid frequency',
-  }).optional(),
-  planningPeriod: z.enum(['WEEKLY', 'MONTHLY', 'QUARTERLY', 'YEARLY'], {
-    message: 'Invalid planning period',
-  }).optional(),
+  postingDaysOfWeek: z.array(z.enum(['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'], {
+    message: 'Invalid day of week',
+  })).optional().default([]),
 
   // Style & Audience
   tone: z.enum(['professional', 'casual', 'friendly', 'formal', 'witty', 'educational'], {

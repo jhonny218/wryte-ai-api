@@ -16,9 +16,9 @@ const envSchema = z.object({
   CLERK_PUBLISHABLE_KEY: z.string(),
   CLERK_WEBHOOK_SECRET: z.string(),
 
-  // OpenAI
-  OPENAI_API_KEY: z.string(),
-  OPENAI_MODEL: z.string().default('gpt-4-turbo-preview'),
+  // Gemini
+  GEMINI_API_KEY: z.string(),
+  GEMINI_MODEL: z.string().default('gemini-2.5-flash'),
 
   // Frontend
   FRONTEND_URL: z.url(),

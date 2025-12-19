@@ -15,6 +15,8 @@ This project is built with a modern, type-safe backend stack:
 -   **Database**: PostgreSQL
 -   **ORM**: Prisma
 -   **Validation**: Zod
+-   **Job Queue**: BullMQ
+-   **AI Client**: Gemini AI API
 
 ## Getting Started
 

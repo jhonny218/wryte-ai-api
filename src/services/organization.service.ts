@@ -3,7 +3,7 @@ import { ForbiddenError } from "../utils/errors";
 import { uniqueSlug } from "../utils/slug";
 
 class OrganizationService {
-  async findAll (userId: string) {
+  async findAll(userId: string) {
     return await prisma.organization.findMany({
       where: { members: { some: { userId } } },
       include: {
@@ -16,7 +16,7 @@ class OrganizationService {
     })
   }
 
-  async create (userId: string, data: any) {
+  async create(userId: string, data: any) {
     // 1. Generate unique slug
     const slug = await uniqueSlug(
       data.name,
@@ -30,8 +30,7 @@ class OrganizationService {
     const contentSettingsData = data.contentSettings ? {
       primaryKeywords: data.contentSettings.primaryKeywords,
       secondaryKeywords: data.contentSettings.secondaryKeywords || [],
-      frequency: data.contentSettings.frequency || null,
-      planningPeriod: data.contentSettings.planningPeriod || null,
+      postingDaysOfWeek: data.contentSettings.postingDaysOfWeek || [],
       tone: data.contentSettings.tone || null,
       targetAudience: data.contentSettings.targetAudience || null,
       industry: data.contentSettings.industry || null,
@@ -73,7 +72,7 @@ class OrganizationService {
     })
   }
 
-  async findById (userId: string, orgId: string) {
+  async findById(userId: string, orgId: string) {
     const org = await prisma.organization.findUnique({
       where: { id: orgId },
       include: {
@@ -100,7 +99,7 @@ class OrganizationService {
     return { ...org, role: isMember.role }
   }
 
-  async findBySlug (userId: string, slug: string) {
+  async findBySlug(userId: string, slug: string) {
     const org = await prisma.organization.findUnique({
       where: { slug },
       include: {
@@ -127,7 +126,7 @@ class OrganizationService {
     return { ...org, role: isMember.role }
   }
 
-  async update (userId: string, orgId: string, data: any) {
+  async update(userId: string, orgId: string, data: any) {
     // Check membership & role (must be ADMIN or OWNER)
     const membership = await prisma.organizationMember.findUnique({
       where: {
