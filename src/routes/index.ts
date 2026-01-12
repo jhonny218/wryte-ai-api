@@ -6,6 +6,7 @@ import { settingsRoutes } from "./settings.routes";
 import { webhookRoutes } from "./webhook.routes";
 import { jobRoutes } from "./job.routes";
 import { titleRoutes } from "./title.routes";
+import { calendarRoutes } from "./calendar.routes";
 
 const routes = Router();
 
@@ -19,5 +20,6 @@ routes.use('/organizations', organizationRoutes);
 routes.use('/settings', settingsRoutes);
 routes.use('/jobs', jobRoutes);
 routes.use('/titles', titleRoutes);
+routes.use('/calendar', calendarRoutes);
 
 export { routes }

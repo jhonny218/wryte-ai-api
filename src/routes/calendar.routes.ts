@@ -4,3 +4,5 @@ import { calendarController } from "../controllers/calendar.controller";
 const router = Router();
 
 router.get('/', calendarController.getCalendarEvents);
+
+export const calendarRoutes = router;
