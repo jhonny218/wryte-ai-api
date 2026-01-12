@@ -9,6 +9,7 @@ import { errorMiddleware } from './middleware/error.middleware'
 import { loggingMiddleware } from './middleware/logging.middleware'
 import { env } from './config/env'
 import { pingDatabase } from './config/database'
+import { serverAdapter } from './config/bullboard'
 
 export const app = express();
 
@@ -44,6 +45,9 @@ app.get('/health', async (req, res) => {
     return res.status(500).json({ status: 'error', timestamp, database: 'unknown' })
   }
 })
+
+// Bull Board UI for queue monitoring
+app.use('/admin/queues', serverAdapter.getRouter())
 
 // API routes
 app.use('/api/v1', routes)

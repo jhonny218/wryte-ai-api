@@ -85,5 +85,11 @@ export const titleGenerationWorker = new Worker<TitleGenerationJobProtocol>(
   {
     connection,
     concurrency: 5, // Process 5 jobs at a time
+    // Dramatically reduce polling frequency for Upstash free tier
+    lockDuration: 30000, // 30 seconds - how long to hold job lock
+    lockRenewTime: 15000, // 15 seconds - renew lock interval
+    stalledInterval: 30000, // Check for stalled jobs every 30s
+    maxStalledCount: 1, // Max times a job can be recovered from stalled state
+    autorun: true,
   }
 );

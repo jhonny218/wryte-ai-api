@@ -8,6 +8,9 @@ const router = Router();
 
 router.use(requireAuth) // Apply authentication middleware to all user routes
 
+// Get job status by ID
+router.get('/:jobId', jobController.getJobStatus);
+
 // Apply rate limiting to job creation
 router.post('/title', rateLimitMiddleware, jobController.createTitleGenerationJob);
 

@@ -54,12 +54,19 @@ export class JobController {
   }
 
   // GET /api/v1/jobs/:id
-  // Optional endpoint to poll job status
+  // Endpoint to poll job status
   async getJobStatus(req: Request, res: Response, next: NextFunction) {
     try {
-      // Implementation for fetching job status if needed
-      // For now, let's skip unless requested
-      res.status(501).json({ message: "Not implemented" });
+      const { jobId } = req.params;
+      
+      // Fetch job status from DB
+      const job = await jobService.getJobStatus(jobId!);
+      if (!job) {
+        return res.status(404).json({ message: 'Job not found' });
+      }
+      
+      // Return job status
+      return res.status(200).json({ data: job });
     } catch (error) {
       next(error);
     }

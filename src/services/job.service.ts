@@ -19,6 +19,12 @@ export class JobService {
     });
   }
 
+  async getJobStatus(jobId: string): Promise<Job | null> {
+    return prisma.job.findUnique({
+      where: { id: jobId },
+    });
+  }
+
   async updateJobStatus(jobId: string, status: JobStatus, result?: any, error?: string) {
     const data: any = { status };
     if (result) data.result = result;

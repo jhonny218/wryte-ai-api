@@ -1,5 +1,13 @@
 import { BlogTitle, TitleStatus } from "../../generated/prisma/client";
 import { prisma } from "../utils/prisma";
+import { NotFoundError, ForbiddenError } from "../utils/errors";
+
+export type UpdateTitleInput = {
+  title?: string;
+  status?: TitleStatus;
+  scheduledDate?: Date | null;
+  aiGenerationContext?: any;
+}
 
 export class TitleService {
   async getTitles(organizationId: string) {
@@ -41,6 +49,42 @@ export class TitleService {
     return prisma.blogTitle.createMany({
       data,
     });
+  }
+
+  async updateTitle(organizationId: string, titleId: string, data: UpdateTitleInput) {
+    // Ensure the title exists and belongs to the organization
+    const existing = await prisma.blogTitle.findUnique({ where: { id: titleId } });
+    if (!existing) throw new NotFoundError('Title not found')
+    if (existing.organizationId !== organizationId) {
+      throw new ForbiddenError('You do not have permission to update this title')
+    }
+
+    // Restrict which fields may be updated to avoid accidental overwrites
+    const updateData: UpdateTitleInput = {}
+    if (data.title !== undefined) updateData.title = data.title
+    if (data.status !== undefined) updateData.status = data.status
+    if (data.scheduledDate !== undefined) updateData.scheduledDate = data.scheduledDate
+    if (data.aiGenerationContext !== undefined) updateData.aiGenerationContext = data.aiGenerationContext
+
+    const updated = await prisma.blogTitle.update({
+      where: { id: titleId },
+      data: updateData
+    })
+
+    return updated
+  }
+
+  async deleteTitle(organizationId: string, titleId: string) {
+    // Ensure the title exists and belongs to the organization
+    const existing = await prisma.blogTitle.findUnique({ where: { id: titleId } });
+    if (!existing) throw new NotFoundError('Title not found')
+    if (existing.organizationId !== organizationId) {
+      throw new ForbiddenError('You do not have permission to delete this title')
+    }
+
+    await prisma.blogTitle.delete({
+      where: { id: titleId }
+    })
   }
 
   // Helper to fetch settings
