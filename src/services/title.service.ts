@@ -93,6 +93,30 @@ export class TitleService {
       where: { organizationId },
     });
   }
+
+  // year=2024&month=02&organizationId
+  getCalendarEvents(year: string, month: string, organizationId: string) {
+    const yearNum = parseInt(year, 10);
+    const monthNum = parseInt(month, 10);
+
+    if (isNaN(yearNum) || isNaN(monthNum) || monthNum < 1 || monthNum > 12) {
+      throw new NotFoundError('Invalid year or month');
+    }
+
+    const startDate = new Date(yearNum, monthNum - 1, 1);
+    const endDate = new Date(yearNum, monthNum, 0, 23, 59, 59, 999); // Last day of the month
+
+    return prisma.blogTitle.findMany({
+      where: {
+        organizationId,
+        scheduledDate: {
+          gte: startDate,
+          lte: endDate,
+        },
+      },
+      orderBy: { scheduledDate: 'asc' },
+    });
+  }
 }
 
 export const titleService = new TitleService();
