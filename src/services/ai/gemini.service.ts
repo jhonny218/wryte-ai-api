@@ -1,5 +1,5 @@
 import { GoogleGenAI } from "@google/genai";
-import { env } from '../config/env';
+import { env } from '../../config/env';
 
 export class GeminiService {
   private ai: GoogleGenAI;

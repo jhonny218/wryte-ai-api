@@ -4,7 +4,7 @@ import { prisma } from "../utils/prisma";
 export class JobService {
   async createJob(
     userId: string,
-    organizationId: string,
+    organizationId: string | null,
     type: JobType,
     input: any
   ): Promise<Job> {

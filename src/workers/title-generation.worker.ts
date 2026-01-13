@@ -1,9 +1,9 @@
 import { Worker, Job } from 'bullmq';
 import { connection } from '../config/redis';
 import { QueueName, TitleGenerationJobProtocol } from '../types/jobs';
-import { promptService } from '../services/prompt.service';
-import { geminiService } from '../services/gemini.service';
-import { parserService } from '../services/parser.service';
+import { promptService } from '../services/ai/prompt.service';
+import { geminiService } from '../services/ai/gemini.service';
+import { parserService } from '../services/ai/parser.service';
 import { titleService } from '../services/title.service';
 import { jobService } from '../services/job.service';
 import { JobStatus, JobType } from '../../generated/prisma/client';
@@ -19,26 +19,26 @@ export const titleGenerationWorker = new Worker<TitleGenerationJobProtocol>(
     }
 
     try {
-      // 2. Fetch Content Settings
+      // 1. Fetch Content Settings
       const settings = await titleService.getContentSettings(organizationId);
       if (!settings) throw new Error("Content settings not found.");
 
-      // 3. Logic: Generate X titles where X = dates.length
+      // 2. Logic: Generate X titles where X = dates.length
       const titlesToGenerate = dates.length;
       if (titlesToGenerate === 0) throw new Error("No dates provided.");
 
       const prompt = promptService.generateTitlePrompt(settings, titlesToGenerate);
       console.log("Prompt:", prompt);
 
-      // 4. Call Gemini
+      // 3. Call Gemini
       const gptResponse = await geminiService.generateCompletion(prompt);
       console.log("GPT Response:", gptResponse);
 
-      // 5. Parse Response
+      // 4. Parse Response
       const titles = parserService.parseTitleResponse(gptResponse);
       console.log("Parsed Titles:", titles);
 
-      // 6. Save to DB - assigning each title a specific date from the list
+      // 5. Save to DB - assigning each title a specific date from the list
       // Note: titles.length might differ from dates.length if AI hallucinates count.
       // We'll iterate up to the minimum of both.
 
