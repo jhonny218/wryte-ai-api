@@ -13,7 +13,7 @@ import { prisma } from '../utils/prisma';
 export const outlineGenerationWorker = new Worker<OutlineGenerationJobProtocol>(
   QueueName.OUTLINE_GENERATION,
   async (job: Job<OutlineGenerationJobProtocol>) => {
-    const { userId, organizationId, blogTitleId, additionalInstructions } = job.data;
+    const { userId, blogTitleId, additionalInstructions } = job.data;
     const dbJobIdFromPayload = (job.data as any).jobId;
 
     if (dbJobIdFromPayload) {
@@ -30,9 +30,8 @@ export const outlineGenerationWorker = new Worker<OutlineGenerationJobProtocol>(
         throw new Error('Blog title not found');
       }
 
-      if (blogTitle.organizationId !== organizationId) {
-        throw new Error('Blog title does not belong to this organization');
-      }
+      // Use the organizationId from the fetched blog title
+      const organizationId = blogTitle.organizationId;
 
       // 2. Fetch content settings
       const settings = await titleService.getContentSettings(organizationId);

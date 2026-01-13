@@ -83,7 +83,6 @@ export class JobController {
       await outlineGenerationQueue.add('generate-outline', {
         ...validatedData,
         userId: user.id,
-        organizationId: '', // Will be fetched in worker
         jobId: job.id
       }, {
         jobId: job.id
@@ -134,7 +133,6 @@ export class JobController {
       await blogGenerationQueue.add('generate-blog', {
         ...validatedData,
         userId: user.id,
-        organizationId: '', // Will be fetched in worker
         jobId: job.id
       }, {
         jobId: job.id

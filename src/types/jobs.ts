@@ -12,14 +12,12 @@ export interface TitleGenerationJobProtocol {
 
 export interface OutlineGenerationJobProtocol {
   userId: string;
-  organizationId: string;
   blogTitleId: string;
   additionalInstructions?: string;
 }
 
 export interface BlogGenerationJobProtocol {
   userId: string;
-  organizationId: string;
   blogOutlineId: string;
   additionalInstructions?: string;
 }
