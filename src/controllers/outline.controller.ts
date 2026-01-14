@@ -32,9 +32,12 @@ export class OutlineController {
 
       // Normalize and validate input before passing to service
       const updateData: any = {}
-      if (body.content !== undefined) updateData.content = String(body.content)
+      if (body.structure !== undefined) updateData.structure = body.structure
+      if (body.seoKeywords !== undefined) updateData.seoKeywords = body.seoKeywords
+      if (body.metaDescription !== undefined) updateData.metaDescription = String(body.metaDescription)
+      if (body.suggestedImages !== undefined) updateData.suggestedImages = body.suggestedImages
       if (body.status !== undefined) {
-        const allowed = ['PENDING', 'COMPLETED', 'REJECTED']
+        const allowed = ['PENDING', 'APPROVED', 'REJECTED', 'REGENERATING']
         if (!allowed.includes(body.status)) throw new UnauthorizedError('Invalid status value')
         updateData.status = body.status
       }

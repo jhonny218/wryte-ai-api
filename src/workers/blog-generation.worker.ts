@@ -9,6 +9,13 @@ import { titleService } from '../services/title.service';
 import { jobService } from '../services/job.service';
 import { JobStatus } from '../../generated/prisma/client';
 import { prisma } from '../utils/prisma';
+import { marked } from 'marked';
+
+// Configure marked for better HTML output
+marked.setOptions({
+  gfm: true, // GitHub Flavored Markdown
+  breaks: true, // Convert \n to <br>
+});
 
 export const blogGenerationWorker = new Worker<BlogGenerationJobProtocol>(
   QueueName.BLOG_GENERATION,
@@ -62,14 +69,18 @@ export const blogGenerationWorker = new Worker<BlogGenerationJobProtocol>(
         throw new Error('Failed to parse blog response from AI');
       }
 
-      // 6. Save blog to database
+      // 6. Convert Markdown to HTML
+      const markdownContent = parsedBlog.content || '';
+      const htmlContent = await marked(markdownContent);
+
+      // 7. Save blog to database
       const blog = await blogService.createBlog(blogOutlineId, {
-        content: parsedBlog.content || '',
-        htmlContent: parsedBlog.content || '', // Can process markdown to HTML later
+        content: markdownContent,
+        htmlContent: htmlContent,
         wordCount: parsedBlog.wordCount || 0,
       });
 
-      // 7. Update job status
+      // 8. Update job status
       if (dbJobIdFromPayload) {
         await jobService.updateJobStatus(dbJobIdFromPayload, JobStatus.COMPLETED, {
           blogId: blog.id,
