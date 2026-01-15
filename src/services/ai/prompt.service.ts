@@ -43,7 +43,7 @@ export class PromptService {
 
   Context & Strategy:
   - Primary keywords (prioritize these naturally when relevant): ${primary}
-  - Secondary keywords (use to enrich variety and specificity): ${secondary}
+  - Secondary keywords (select only 2-3 keywords from this list to use sparingly across ALL titles for variety): ${secondary}
   - Campaign goals: ${goalsText}
   - Topics to avoid: ${avoidText}
   - Competitor and inspiration URLs (ensure you do NOT copy or closely mimic known titles or structures from these): ${competitorsText}
@@ -51,14 +51,16 @@ export class PromptService {
 
   Style & Quality Requirements:
   1. Titles MUST be original, non-generic, and non-repetitive. Each one should feel like a distinct angle or story, not a small variation of another.
-  2. Avoid clickbait or over-sensationalized phrasing (no “You won’t believe…”, “shocking”, etc.), but still keep every title emotionally appealing and curiosity-driven.
-  3. Blend strategic structure types across the list (for example: how-to guides, step-by-step frameworks, myth-busting, listicles, quiet authority statements, and practical “for beginners” guides).
-  4. Naturally weave in primary and secondary keywords where they fit. Do NOT stuff keywords.
-  5. Avoid any topics that conflict with the “topics to avoid” list.
-  6. ${lengthGuidance}
-  7. Write in clear, natural, human-sounding English that aligns with the specified tone: ${toneText}.
-  8. Do NOT reference competitors directly in the titles.
-  9. Do NOT include numbering or prefixes like “1.”, “Title 1:”, etc. Just the raw titles.
+  2. CRITICAL: Maximize topic diversity. If a word or concept appears in one title (e.g., "hormonal", "balance", "stress"), actively avoid using it in subsequent titles. Explore different angles, benefits, and aspects of ${industryText}.
+  3. Avoid clickbait or over-sensationalized phrasing (no "You won't believe…", "shocking", etc.), but still keep every title emotionally appealing and curiosity-driven.
+  4. Blend strategic structure types across the list (for example: how-to guides, step-by-step frameworks, myth-busting, listicles, quiet authority statements, and practical "for beginners" guides).
+  5. Naturally weave in primary keywords where they fit, and use ONLY 2-3 secondary keywords SPARINGLY across the entire set. Do NOT stuff keywords or repeat the same keywords in multiple titles.
+  6. Avoid any topics that conflict with the "topics to avoid" list.
+  7. ${lengthGuidance}
+  8. Write in clear, natural, human-sounding English that aligns with the specified tone: ${toneText}.
+  9. Do NOT reference competitors directly in the titles.
+  10. Do NOT include numbering or prefixes like "1.", "Title 1:", etc. Just the raw titles.
+  11. VARIETY CHECK: Before finalizing your list, review it to ensure each title explores a meaningfully different topic, angle, or benefit. No two titles should feel similar or use overlapping vocabulary.
 
   Output format (very important):
   1. Return ONLY a valid JSON array of strings.
