@@ -20,6 +20,7 @@ module.exports = {
     '!src/tests/**',           // Exclude test files
     '!src/**/*.d.ts',          // Exclude type definitions
     '!src/index.ts',           // Exclude entry point
+    '!src/server.ts',          // Exclude bootstrap server
     '!src/types/**',           // Exclude type-only files
   ],
   coverageDirectory: 'coverage',

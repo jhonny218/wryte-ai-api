@@ -24,6 +24,8 @@ process.env.NODE_ENV = 'test';
 process.env.DATABASE_URL = 'postgresql://test:test@localhost:5432/test_db';
 process.env.REDIS_URL = 'redis://localhost:6379';
 process.env.CLERK_SECRET_KEY = 'test_clerk_secret';
+process.env.CLERK_PUBLISHABLE_KEY = 'test_clerk_publishable';
+process.env.CLERK_WEBHOOK_SECRET = 'test_clerk_webhook_secret';
 process.env.GEMINI_API_KEY = 'test_gemini_key';
 process.env.FRONTEND_URL = 'http://localhost:3001';
 
@@ -42,3 +44,4 @@ afterAll(async () => {
     // Redis might not be imported in all tests, ignore error
   }
 });
+
