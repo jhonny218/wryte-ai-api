@@ -9,11 +9,15 @@ const connection = new IORedis(env.REDIS_URL, {
 
 // Log connection status
 connection.on('connect', () => {
-  console.log('✅ Redis connected');
+  if (process.env.NODE_ENV !== 'test') {
+    console.log('✅ Redis connected');
+  }
 });
 
 connection.on('error', (err) => {
-  console.error('❌ Redis connection error:', err.message);
+  if (process.env.NODE_ENV !== 'test') {
+    console.error('❌ Redis connection error:', err.message);
+  }
 });
 
 export { connection };

@@ -31,4 +31,14 @@ process.env.FRONTEND_URL = 'http://localhost:3001';
 afterAll(async () => {
   // Close database connections, etc.
   // Note: Prisma mock cleanup happens automatically via jest.clearAllMocks()
+  
+  // Close Redis connection to prevent hanging
+  try {
+    const { connection } = await import('../config/redis');
+    if (connection.status === 'ready' || connection.status === 'connecting') {
+      await connection.quit();
+    }
+  } catch (error) {
+    // Redis might not be imported in all tests, ignore error
+  }
 });

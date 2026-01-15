@@ -12,7 +12,11 @@ export const loggingMiddleware = (req: Request, res: Response, next: NextFunctio
     const duration = Date.now() - start;
     const message = `${req.method} ${req.originalUrl} ${res.statusCode} ${duration}ms`;
 
-    logger.http(message);
+    try {
+      logger.http(message);
+    } catch (error) {
+      // Silently fail if logger is unavailable
+    }
   });
 
   next();
