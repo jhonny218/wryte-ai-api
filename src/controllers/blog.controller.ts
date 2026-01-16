@@ -4,11 +4,12 @@ import { userService } from '../services/user.service';
 import { UnauthorizedError } from '../utils/errors';
 import { successResponse } from '../utils/response';
 import { blogService } from '../services/blog.service';
+import { getUserId } from '../utils/auth';
 
 export class BlogController {
   async getBlogs(req: Request, res: Response, next: NextFunction) {
     try {
-      const { userId: clerkId } = getAuth(req)
+      const clerkId = getUserId(req)
       const user = await userService.findByClerkId(clerkId!)
       if (!user) throw new UnauthorizedError('User not found')
 
@@ -23,7 +24,7 @@ export class BlogController {
 
   async updateBlog(req: Request, res: Response, next: NextFunction) {
     try {
-      const { userId: clerkId } = getAuth(req)
+      const clerkId = getUserId(req)
       const user = await userService.findByClerkId(clerkId!)
       if (!user) throw new UnauthorizedError('User not found')
 
@@ -51,7 +52,7 @@ export class BlogController {
 
   async deleteBlog(req: Request, res: Response, next: NextFunction) {
     try {
-      const { userId: clerkId } = getAuth(req)
+      const clerkId = getUserId(req)
       const user = await userService.findByClerkId(clerkId!)
       if (!user) throw new UnauthorizedError('User not found')
 

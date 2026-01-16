@@ -1,0 +1,329 @@
+import { test, expect } from '@playwright/test'
+import { createAuthenticatedContext, createTestUser, deleteTestUser } from '../helpers/auth-bypass'
+import { getTestPrismaClient } from '../setup/database'
+import { waitForJobCompletion } from '../helpers/wait-for-job'
+
+test.describe('Calendar Management', () => {
+  test.describe.configure({ mode: 'parallel' })
+
+  const prisma = getTestPrismaClient()
+  let testUserId: string
+  let testClerkId: string
+  let orgId: string
+
+  test.beforeEach(async ({ request }) => {
+    const user = await createTestUser(prisma)
+    testUserId = user.id
+    testClerkId = user.clerkId
+
+    const headers = createAuthenticatedContext(testClerkId)
+    
+    // Create organization
+    const orgRes = await request.post('/api/v1/organizations', {
+      headers,
+      data: { name: 'Calendar Test Org', mission: 'Testing calendar features' }
+    })
+    const org = await orgRes.json()
+    orgId = org.data.id
+  })
+
+  test.afterEach(async () => {
+    if (testUserId) {
+      await deleteTestUser(prisma, testUserId)
+    }
+  })
+
+  test('should get calendar entries for organization', async ({ request }) => {
+    const headers = createAuthenticatedContext(testClerkId)
+    
+    const response = await request.get(`/api/v1/calendar/${orgId}`, { headers })
+    
+    expect(response.status()).toBe(200)
+    const body = await response.json()
+    
+    expect(Array.isArray(body.data)).toBeTruthy()
+  })
+
+  test('should create scheduled blog post', async ({ request }) => {
+    test.slow()
+    const headers = createAuthenticatedContext(testClerkId)
+    
+    // First generate a blog
+    const titleGenRes = await request.post(`/api/v1/organizations/${orgId}/titles/generate`, {
+      headers,
+      data: { keywords: ['calendar', 'scheduling'] }
+    })
+    const titleGenBody = await titleGenRes.json()
+    await waitForJobCompletion(request, titleGenBody.data.jobId, { timeout: 15000 })
+
+    const titlesRes = await request.get(`/api/v1/organizations/${orgId}/titles`, { headers })
+    const titlesBody = await titlesRes.json()
+    const titleId = titlesBody.data[0].id
+
+    const outlineGenRes = await request.post(`/api/v1/organizations/${orgId}/outlines/generate`, {
+      headers,
+      data: { titleId }
+    })
+    const outlineGenBody = await outlineGenRes.json()
+    await waitForJobCompletion(request, outlineGenBody.data.jobId, { timeout: 20000 })
+
+    const outlinesRes = await request.get(`/api/v1/organizations/${orgId}/outlines`, { headers })
+    const outlinesBody = await outlinesRes.json()
+    const outlineId = outlinesBody.data[0].id
+
+    const blogGenRes = await request.post(`/api/v1/organizations/${orgId}/blogs/generate`, {
+      headers,
+      data: { outlineId }
+    })
+    const blogGenBody = await blogGenRes.json()
+    await waitForJobCompletion(request, blogGenBody.data.jobId, { timeout: 30000 })
+
+    const blogsRes = await request.get(`/api/v1/organizations/${orgId}/blogs`, { headers })
+    const blogsBody = await blogsRes.json()
+    const blogId = blogsBody.data[0].id
+
+    // Schedule the blog post
+    const scheduledDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 7 days from now
+    const response = await request.post(`/api/v1/calendar/${orgId}`, {
+      headers,
+      data: {
+        blogId,
+        scheduledDate: scheduledDate.toISOString(),
+        status: 'SCHEDULED'
+      }
+    })
+
+    expect(response.status()).toBe(201)
+    const body = await response.json()
+    
+    expect(body.data.blogId).toBe(blogId)
+    expect(body.data.organizationId).toBe(orgId)
+    expect(body.data.status).toBe('SCHEDULED')
+  })
+
+  test('should update scheduled date', async ({ request }) => {
+    test.slow()
+    const headers = createAuthenticatedContext(testClerkId)
+    
+    // Create a blog and schedule it
+    const titleGenRes = await request.post(`/api/v1/organizations/${orgId}/titles/generate`, {
+      headers,
+      data: { keywords: ['update', 'schedule'] }
+    })
+    const titleGenBody = await titleGenRes.json()
+    await waitForJobCompletion(request, titleGenBody.data.jobId, { timeout: 15000 })
+
+    const titlesRes = await request.get(`/api/v1/organizations/${orgId}/titles`, { headers })
+    const titlesBody = await titlesRes.json()
+    const titleId = titlesBody.data[0].id
+
+    const outlineGenRes = await request.post(`/api/v1/organizations/${orgId}/outlines/generate`, {
+      headers,
+      data: { titleId }
+    })
+    const outlineGenBody = await outlineGenRes.json()
+    await waitForJobCompletion(request, outlineGenBody.data.jobId, { timeout: 20000 })
+
+    const outlinesRes = await request.get(`/api/v1/organizations/${orgId}/outlines`, { headers })
+    const outlinesBody = await outlinesRes.json()
+    const outlineId = outlinesBody.data[0].id
+
+    const blogGenRes = await request.post(`/api/v1/organizations/${orgId}/blogs/generate`, {
+      headers,
+      data: { outlineId }
+    })
+    const blogGenBody = await blogGenRes.json()
+    await waitForJobCompletion(request, blogGenBody.data.jobId, { timeout: 30000 })
+
+    const blogsRes = await request.get(`/api/v1/organizations/${orgId}/blogs`, { headers })
+    const blogsBody = await blogsRes.json()
+    const blogId = blogsBody.data[0].id
+
+    const originalDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+    const createRes = await request.post(`/api/v1/calendar/${orgId}`, {
+      headers,
+      data: {
+        blogId,
+        scheduledDate: originalDate.toISOString(),
+        status: 'SCHEDULED'
+      }
+    })
+    const created = await createRes.json()
+    const entryId = created.data.id
+
+    // Update the scheduled date
+    const newDate = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000) // 14 days from now
+    const updateRes = await request.patch(`/api/v1/calendar/${orgId}/${entryId}`, {
+      headers,
+      data: {
+        scheduledDate: newDate.toISOString()
+      }
+    })
+
+    expect(updateRes.status()).toBe(200)
+    const body = await updateRes.json()
+    
+    expect(body.data.id).toBe(entryId)
+    expect(new Date(body.data.scheduledDate).getTime()).toBe(newDate.getTime())
+  })
+
+  test('should mark blog as published', async ({ request }) => {
+    test.slow()
+    const headers = createAuthenticatedContext(testClerkId)
+    
+    // Create and schedule a blog
+    const titleGenRes = await request.post(`/api/v1/organizations/${orgId}/titles/generate`, {
+      headers,
+      data: { keywords: ['publish', 'test'] }
+    })
+    const titleGenBody = await titleGenRes.json()
+    await waitForJobCompletion(request, titleGenBody.data.jobId, { timeout: 15000 })
+
+    const titlesRes = await request.get(`/api/v1/organizations/${orgId}/titles`, { headers })
+    const titlesBody = await titlesRes.json()
+    const titleId = titlesBody.data[0].id
+
+    const outlineGenRes = await request.post(`/api/v1/organizations/${orgId}/outlines/generate`, {
+      headers,
+      data: { titleId }
+    })
+    const outlineGenBody = await outlineGenRes.json()
+    await waitForJobCompletion(request, outlineGenBody.data.jobId, { timeout: 20000 })
+
+    const outlinesRes = await request.get(`/api/v1/organizations/${orgId}/outlines`, { headers })
+    const outlinesBody = await outlinesRes.json()
+    const outlineId = outlinesBody.data[0].id
+
+    const blogGenRes = await request.post(`/api/v1/organizations/${orgId}/blogs/generate`, {
+      headers,
+      data: { outlineId }
+    })
+    const blogGenBody = await blogGenRes.json()
+    await waitForJobCompletion(request, blogGenBody.data.jobId, { timeout: 30000 })
+
+    const blogsRes = await request.get(`/api/v1/organizations/${orgId}/blogs`, { headers })
+    const blogsBody = await blogsRes.json()
+    const blogId = blogsBody.data[0].id
+
+    const createRes = await request.post(`/api/v1/calendar/${orgId}`, {
+      headers,
+      data: {
+        blogId,
+        scheduledDate: new Date().toISOString(),
+        status: 'SCHEDULED'
+      }
+    })
+    const created = await createRes.json()
+    const entryId = created.data.id
+
+    // Mark as published
+    const updateRes = await request.patch(`/api/v1/calendar/${orgId}/${entryId}`, {
+      headers,
+      data: {
+        status: 'PUBLISHED',
+        publishedAt: new Date().toISOString()
+      }
+    })
+
+    expect(updateRes.status()).toBe(200)
+    const body = await updateRes.json()
+    
+    expect(body.data.status).toBe('PUBLISHED')
+    expect(body.data.publishedAt).toBeDefined()
+  })
+
+  test('should delete calendar entry', async ({ request }) => {
+    test.slow()
+    const headers = createAuthenticatedContext(testClerkId)
+    
+    // Create a blog and schedule it
+    const titleGenRes = await request.post(`/api/v1/organizations/${orgId}/titles/generate`, {
+      headers,
+      data: { keywords: ['delete', 'entry'] }
+    })
+    const titleGenBody = await titleGenRes.json()
+    await waitForJobCompletion(request, titleGenBody.data.jobId, { timeout: 15000 })
+
+    const titlesRes = await request.get(`/api/v1/organizations/${orgId}/titles`, { headers })
+    const titlesBody = await titlesRes.json()
+    const titleId = titlesBody.data[0].id
+
+    const outlineGenRes = await request.post(`/api/v1/organizations/${orgId}/outlines/generate`, {
+      headers,
+      data: { titleId }
+    })
+    const outlineGenBody = await outlineGenRes.json()
+    await waitForJobCompletion(request, outlineGenBody.data.jobId, { timeout: 20000 })
+
+    const outlinesRes = await request.get(`/api/v1/organizations/${orgId}/outlines`, { headers })
+    const outlinesBody = await outlinesRes.json()
+    const outlineId = outlinesBody.data[0].id
+
+    const blogGenRes = await request.post(`/api/v1/organizations/${orgId}/blogs/generate`, {
+      headers,
+      data: { outlineId }
+    })
+    const blogGenBody = await blogGenRes.json()
+    await waitForJobCompletion(request, blogGenBody.data.jobId, { timeout: 30000 })
+
+    const blogsRes = await request.get(`/api/v1/organizations/${orgId}/blogs`, { headers })
+    const blogsBody = await blogsRes.json()
+    const blogId = blogsBody.data[0].id
+
+    const createRes = await request.post(`/api/v1/calendar/${orgId}`, {
+      headers,
+      data: {
+        blogId,
+        scheduledDate: new Date().toISOString(),
+        status: 'SCHEDULED'
+      }
+    })
+    const created = await createRes.json()
+    const entryId = created.data.id
+
+    // Delete the entry
+    const deleteRes = await request.delete(`/api/v1/calendar/${orgId}/${entryId}`, { headers })
+    expect(deleteRes.status()).toBe(200)
+
+    // Verify it's deleted
+    const getRes = await request.get(`/api/v1/calendar/${orgId}/${entryId}`, { headers })
+    expect(getRes.status()).toBe(404)
+  })
+
+  test('should filter calendar by date range', async ({ request }) => {
+    const headers = createAuthenticatedContext(testClerkId)
+    
+    const startDate = new Date('2026-01-01').toISOString()
+    const endDate = new Date('2026-12-31').toISOString()
+    
+    const response = await request.get(
+      `/api/v1/calendar/${orgId}?startDate=${startDate}&endDate=${endDate}`,
+      { headers }
+    )
+    
+    expect(response.status()).toBe(200)
+    const body = await response.json()
+    
+    expect(Array.isArray(body.data)).toBeTruthy()
+  })
+
+  test('should filter calendar by status', async ({ request }) => {
+    const headers = createAuthenticatedContext(testClerkId)
+    
+    const response = await request.get(
+      `/api/v1/calendar/${orgId}?status=SCHEDULED`,
+      { headers }
+    )
+    
+    expect(response.status()).toBe(200)
+    const body = await response.json()
+    
+    expect(Array.isArray(body.data)).toBeTruthy()
+    // All entries should be SCHEDULED if any are returned
+    if (body.data.length > 0) {
+      body.data.forEach((entry: any) => {
+        expect(entry.status).toBe('SCHEDULED')
+      })
+    }
+  })
+})

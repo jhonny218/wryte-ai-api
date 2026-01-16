@@ -4,7 +4,7 @@ import { uniqueSlug } from "../utils/slug";
 
 class OrganizationService {
   async findAll(userId: string) {
-    return await prisma.organization.findMany({
+    const orgs = await prisma.organization.findMany({
       where: { members: { some: { userId } } },
       include: {
         members: {
@@ -14,6 +14,13 @@ class OrganizationService {
       },
       orderBy: { createdAt: 'desc' }
     })
+    
+    // Flatten role from members array to top-level property
+    return orgs.map(org => ({
+      ...org,
+      role: org.members[0]?.role,
+      members: undefined // Remove members array from response
+    }))
   }
 
   async create(userId: string, data: any) {

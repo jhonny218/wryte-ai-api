@@ -1,0 +1,260 @@
+import { test, expect } from '@playwright/test'
+import { createAuthenticatedContext, createTestUser, deleteTestUser } from '../helpers/auth-bypass'
+import { getTestPrismaClient } from '../setup/database'
+import { waitForJobCompletion } from '../helpers/wait-for-job'
+
+test.describe('Job Management', () => {
+  test.describe.configure({ mode: 'parallel' })
+
+  const prisma = getTestPrismaClient()
+  let testUserId: string
+  let testClerkId: string
+  let orgId: string
+
+  test.beforeEach(async ({ request }) => {
+    const user = await createTestUser(prisma)
+    testUserId = user.id
+    testClerkId = user.clerkId
+
+    const headers = createAuthenticatedContext(testClerkId)
+    
+    // Create organization
+    const orgRes = await request.post('/api/v1/organizations', {
+      headers,
+      data: { name: 'Job Test Org', mission: 'Testing job management' }
+    })
+    const org = await orgRes.json()
+    orgId = org.data.id
+  })
+
+  test.afterEach(async () => {
+    if (testUserId) {
+      await deleteTestUser(prisma, testUserId)
+    }
+  })
+
+  test('should get job status by ID', async ({ request }) => {
+    test.slow()
+    const headers = createAuthenticatedContext(testClerkId)
+    
+    // Create a job
+    const titleGenRes = await request.post(`/api/v1/jobs/title`, {
+      headers,
+      data: { keywords: ['test'] }
+    })
+    const titleGenBody = await titleGenRes.json()
+    const jobId = titleGenBody.data.jobId
+
+    // Get job status
+    const jobRes = await request.get(`/api/v1/jobs/${jobId}`, { headers })
+    expect(jobRes.status()).toBe(200)
+
+    const jobBody = await jobRes.json()
+    expect(jobBody.data.id).toBe(jobId)
+    expect(jobBody.data.status).toBeDefined()
+    expect(['PENDING', 'PROCESSING', 'COMPLETED']).toContain(jobBody.data.status)
+  })
+
+  test('should get all jobs for organization', async ({ request }) => {
+    test.slow()
+    const headers = createAuthenticatedContext(testClerkId)
+    
+    // Create multiple jobs
+    await request.post(`/api/v1/jobs/title`, {
+      headers,
+      data: { keywords: ['job1'] }
+    })
+    await request.post(`/api/v1/jobs/title`, {
+      headers,
+      data: { keywords: ['job2'] }
+    })
+
+    // Get all jobs
+    const jobsRes = await request.get(`/api/v1/jobs/${orgId}`, { headers })
+    expect(jobsRes.status()).toBe(200)
+
+    const jobsBody = await jobsRes.json()
+    expect(Array.isArray(jobsBody.data)).toBeTruthy()
+    expect(jobsBody.data.length).toBeGreaterThanOrEqual(2)
+  })
+
+  test('should filter jobs by type', async ({ request }) => {
+    test.slow()
+    const headers = createAuthenticatedContext(testClerkId)
+    
+    // Create title job
+    const titleGenRes = await request.post(`/api/v1/jobs/title`, {
+      headers,
+      data: { keywords: ['filter test'] }
+    })
+    const titleGenBody = await titleGenRes.json()
+    await waitForJobCompletion(request, titleGenBody.data.jobId, { timeout: 15000 })
+
+    // Filter by TITLE type
+    const jobsRes = await request.get(`/api/v1/jobs/${orgId}?type=TITLE`, { headers })
+    expect(jobsRes.status()).toBe(200)
+
+    const jobsBody = await jobsRes.json()
+    expect(Array.isArray(jobsBody.data)).toBeTruthy()
+    
+    // All returned jobs should be TITLE type
+    jobsBody.data.forEach((job: any) => {
+      expect(job.type).toBe('TITLE')
+    })
+  })
+
+  test('should filter jobs by status', async ({ request }) => {
+    test.slow()
+    const headers = createAuthenticatedContext(testClerkId)
+    
+    // Create and complete a job
+    const titleGenRes = await request.post(`/api/v1/jobs/title`, {
+      headers,
+      data: { keywords: ['status test'] }
+    })
+    const titleGenBody = await titleGenRes.json()
+    await waitForJobCompletion(request, titleGenBody.data.jobId, { timeout: 15000 })
+
+    // Filter by COMPLETED status
+    const jobsRes = await request.get(`/api/v1/jobs/${orgId}?status=COMPLETED`, { headers })
+    expect(jobsRes.status()).toBe(200)
+
+    const jobsBody = await jobsRes.json()
+    expect(Array.isArray(jobsBody.data)).toBeTruthy()
+    
+    // All returned jobs should be COMPLETED
+    jobsBody.data.forEach((job: any) => {
+      expect(job.status).toBe('COMPLETED')
+    })
+  })
+
+  test('should include job result in response', async ({ request }) => {
+    test.slow()
+    const headers = createAuthenticatedContext(testClerkId)
+    
+    const titleGenRes = await request.post(`/api/v1/jobs/title`, {
+      headers,
+      data: { keywords: ['result test'] }
+    })
+    const titleGenBody = await titleGenRes.json()
+    const jobId = titleGenBody.data.jobId
+
+    // Wait for completion
+    await waitForJobCompletion(request, jobId, { timeout: 15000 })
+
+    // Get job with result
+    const jobRes = await request.get(`/api/v1/jobs/${jobId}`, { headers })
+    const jobBody = await jobRes.json()
+
+    expect(jobBody.data.status).toBe('COMPLETED')
+    expect(jobBody.data.result).toBeDefined()
+  })
+
+  test('should track job progress', async ({ request }) => {
+    test.slow()
+    const headers = createAuthenticatedContext(testClerkId)
+    
+    const titleGenRes = await request.post(`/api/v1/jobs/title`, {
+      headers,
+      data: { keywords: ['progress test'] }
+    })
+    const titleGenBody = await titleGenRes.json()
+    const jobId = titleGenBody.data.jobId
+
+    // Poll job status
+    let attempts = 0
+    let status = 'PENDING'
+    
+    while (attempts < 10 && status !== 'COMPLETED' && status !== 'FAILED') {
+      const jobRes = await request.get(`/api/v1/jobs/${jobId}`, { headers })
+      const jobBody = await jobRes.json()
+      status = jobBody.data.status
+
+      expect(['PENDING', 'PROCESSING', 'COMPLETED', 'FAILED']).toContain(status)
+      
+      if (status !== 'COMPLETED' && status !== 'FAILED') {
+        await new Promise(resolve => setTimeout(resolve, 500))
+      }
+      attempts++
+    }
+
+    expect(status).toBe('COMPLETED')
+  })
+
+  test('should include timestamps in job data', async ({ request }) => {
+    test.slow()
+    const headers = createAuthenticatedContext(testClerkId)
+    
+    const titleGenRes = await request.post(`/api/v1/jobs/title`, {
+      headers,
+      data: { keywords: ['timestamp test'] }
+    })
+    const titleGenBody = await titleGenRes.json()
+    const jobId = titleGenBody.data.jobId
+
+    await waitForJobCompletion(request, jobId, { timeout: 15000 })
+
+    const jobRes = await request.get(`/api/v1/jobs/${jobId}`, { headers })
+    const jobBody = await jobRes.json()
+
+    expect(jobBody.data.createdAt).toBeDefined()
+    expect(jobBody.data.updatedAt).toBeDefined()
+    
+    // Verify timestamps are valid dates
+    expect(new Date(jobBody.data.createdAt).getTime()).toBeGreaterThan(0)
+    expect(new Date(jobBody.data.updatedAt).getTime()).toBeGreaterThan(0)
+  })
+
+  test('should paginate job results', async ({ request }) => {
+    test.slow()
+    const headers = createAuthenticatedContext(testClerkId)
+    
+    // Create multiple jobs
+    for (let i = 0; i < 5; i++) {
+      await request.post(`/api/v1/jobs/title`, {
+        headers,
+        data: { keywords: [`pagination test ${i}`] }
+      })
+    }
+
+    // Get first page
+    const page1Res = await request.get(`/api/v1/jobs/${orgId}?limit=3`, { headers })
+    const page1Body = await page1Res.json()
+
+    expect(page1Body.data.length).toBeLessThanOrEqual(3)
+    
+    // If pagination is implemented, check for pagination metadata
+    if (page1Body.pagination) {
+      expect(page1Body.pagination.total).toBeGreaterThanOrEqual(5)
+    }
+  })
+
+  test('should sort jobs by creation date', async ({ request }) => {
+    test.slow()
+    const headers = createAuthenticatedContext(testClerkId)
+    
+    // Create jobs with delays
+    await request.post(`/api/v1/jobs/title`, {
+      headers,
+      data: { keywords: ['first'] }
+    })
+    
+    await new Promise(resolve => setTimeout(resolve, 1000))
+    
+    await request.post(`/api/v1/jobs/title`, {
+      headers,
+      data: { keywords: ['second'] }
+    })
+
+    // Get jobs sorted by creation date
+    const jobsRes = await request.get(`/api/v1/jobs/${orgId}?sort=createdAt&order=desc`, { headers })
+    const jobsBody = await jobsRes.json()
+
+    if (jobsBody.data.length >= 2) {
+      const firstJobDate = new Date(jobsBody.data[0].createdAt)
+      const secondJobDate = new Date(jobsBody.data[1].createdAt)
+      
+      expect(firstJobDate.getTime()).toBeGreaterThanOrEqual(secondJobDate.getTime())
+    }
+  })
+})

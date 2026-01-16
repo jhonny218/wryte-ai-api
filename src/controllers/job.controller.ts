@@ -1,5 +1,4 @@
 import { Request, Response, NextFunction } from 'express';
-import { getAuth } from '@clerk/express';
 import { jobService } from '../services/job.service';
 import { titleGenerationQueue, outlineGenerationQueue, blogGenerationQueue } from '../workers/queues';
 import { JobType } from '../../generated/prisma/client';
@@ -7,17 +6,17 @@ import { titleGenerationSchema } from '../validators/title.validator';
 import { generateOutlineSchema } from '../validators/outline.validator';
 import { userService } from '../services/user.service';
 import { UnauthorizedError } from '../utils/errors';
+import { getUserId } from '../utils/auth';
 
 export class JobController {
   // POST /api/v1/jobs/title
   async createTitleGenerationJob(req: Request, res: Response, next: NextFunction) {
     try {
-      console.log('Auth Debug:', getAuth(req));
       // 1. Validate Input
       const validatedData = titleGenerationSchema.parse(req.body);
 
       // 2. Auth & User Resolution
-      const { userId: clerkId } = getAuth(req);
+      const clerkId = getUserId(req);
       if (!clerkId) throw new UnauthorizedError('Not authenticated');
 
       const user = await userService.findByClerkId(clerkId);
@@ -62,7 +61,7 @@ export class JobController {
       const validatedData = generateOutlineSchema.parse(req.body);
 
       // 2. Auth & User Resolution
-      const { userId: clerkId } = getAuth(req);
+      const clerkId = getUserId(req);
       if (!clerkId) throw new UnauthorizedError('Not authenticated');
 
       const user = await userService.findByClerkId(clerkId);
@@ -110,7 +109,7 @@ export class JobController {
       }
 
       // 2. Auth & User Resolution
-      const { userId: clerkId } = getAuth(req);
+      const clerkId = getUserId(req);
       if (!clerkId) throw new UnauthorizedError('Not authenticated');
 
       const user = await userService.findByClerkId(clerkId);

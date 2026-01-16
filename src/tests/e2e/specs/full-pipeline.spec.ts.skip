@@ -1,0 +1,264 @@
+import { test, expect } from '@playwright/test'
+import { createAuthenticatedContext, createTestUser, deleteTestUser } from '../helpers/auth-bypass'
+import { getTestPrismaClient } from '../setup/database'
+import { waitForJobCompletion } from '../helpers/wait-for-job'
+
+test.describe('Full Content Pipeline', () => {
+  test.describe.configure({ mode: 'serial', retries: 2 })
+
+  const prisma = getTestPrismaClient()
+  let testUserId: string
+  let testClerkId: string
+  let orgId: string
+
+  test.beforeAll(async ({ request }) => {
+    const user = await createTestUser(prisma)
+    testUserId = user.id
+    testClerkId = user.clerkId
+
+    const headers = createAuthenticatedContext(testClerkId)
+    
+    // Create organization
+    const orgRes = await request.post('/api/v1/organizations', {
+      headers,
+      data: { 
+        name: 'Pipeline Test Org', 
+        mission: 'Full content pipeline testing',
+        websiteUrl: 'https://pipeline-test.com'
+      }
+    })
+    const org = await orgRes.json()
+    orgId = org.data.id
+  })
+
+  test.afterAll(async () => {
+    if (testUserId) {
+      await deleteTestUser(prisma, testUserId)
+    }
+  })
+
+  test('should complete full pipeline: settings → titles → outline → blog', async ({ request }) => {
+    test.slow()
+    const headers = createAuthenticatedContext(testClerkId)
+    
+    // Step 1: Update content settings
+    const settingsRes = await request.patch(`/api/v1/organizations/${orgId}/settings`, {
+      headers,
+      data: {
+        primaryKeywords: ['E2E Testing', 'Automation', 'Quality Assurance'],
+        tone: 'Technical and informative',
+        targetAudience: 'Software developers and QA engineers'
+      }
+    })
+    expect(settingsRes.status()).toBe(200)
+
+    // Step 2: Generate titles
+    const titleGenRes = await request.post(`/api/v1/jobs/title`, {
+      headers,
+      data: {
+        keywords: ['E2E Testing', 'Best Practices']
+      }
+    })
+    const titleGenBody = await titleGenRes.json()
+    expect(titleGenBody.data.jobId).toBeDefined()
+
+    const titleJob = await waitForJobCompletion(request, titleGenBody.data.jobId, { timeout: 15000 })
+    expect(titleJob.status).toBe('COMPLETED')
+
+    // Step 3: Get generated title
+    const titlesRes = await request.get(`/api/v1/titles/${orgId}`, { headers })
+    const titlesBody = await titlesRes.json()
+    expect(titlesBody.data.length).toBeGreaterThan(0)
+    const titleId = titlesBody.data[0].id
+
+    // Step 4: Generate outline from title
+    const outlineGenRes = await request.post(`/api/v1/jobs/outline`, {
+      headers,
+      data: { titleId }
+    })
+    const outlineGenBody = await outlineGenRes.json()
+    expect(outlineGenBody.data.jobId).toBeDefined()
+
+    const outlineJob = await waitForJobCompletion(request, outlineGenBody.data.jobId, { timeout: 20000 })
+    expect(outlineJob.status).toBe('COMPLETED')
+
+    // Step 5: Get generated outline
+    const outlinesRes = await request.get(`/api/v1/outlines/${orgId}`, { headers })
+    const outlinesBody = await outlinesRes.json()
+    expect(outlinesBody.data.length).toBeGreaterThan(0)
+    const outlineId = outlinesBody.data[0].id
+
+    // Step 6: Generate blog from outline
+    const blogGenRes = await request.post(`/api/v1/jobs/blog`, {
+      headers,
+      data: { outlineId }
+    })
+    const blogGenBody = await blogGenRes.json()
+    expect(blogGenBody.data.jobId).toBeDefined()
+
+    const blogJob = await waitForJobCompletion(request, blogGenBody.data.jobId, { timeout: 30000 })
+    expect(blogJob.status).toBe('COMPLETED')
+
+    // Step 7: Verify final blog
+    const blogsRes = await request.get(`/api/v1/blogs/${orgId}`, { headers })
+    const blogsBody = await blogsRes.json()
+    expect(blogsBody.data.length).toBeGreaterThan(0)
+
+    const blog = blogsBody.data[0]
+    expect(blog.content).toBeDefined()
+    expect(blog.content.length).toBeGreaterThan(100)
+    expect(blog.organizationId).toBe(orgId)
+  })
+
+  test('should maintain data relationships throughout pipeline', async ({ request }) => {
+    test.slow()
+    const headers = createAuthenticatedContext(testClerkId)
+    
+    // Generate title
+    const titleGenRes = await request.post(`/api/v1/jobs/title`, {
+      headers,
+      data: { keywords: ['Relationships Test'] }
+    })
+    const titleGenBody = await titleGenRes.json()
+    await waitForJobCompletion(request, titleGenBody.data.jobId, { timeout: 15000 })
+
+    const titlesRes = await request.get(`/api/v1/titles/${orgId}`, { headers })
+    const titlesBody = await titlesRes.json()
+    const title = titlesBody.data[0]
+
+    // Generate outline
+    const outlineGenRes = await request.post(`/api/v1/jobs/outline`, {
+      headers,
+      data: { titleId: title.id }
+    })
+    const outlineGenBody = await outlineGenRes.json()
+    await waitForJobCompletion(request, outlineGenBody.data.jobId, { timeout: 20000 })
+
+    const outlinesRes = await request.get(`/api/v1/outlines/${orgId}`, { headers })
+    const outlinesBody = await outlinesRes.json()
+    const outline = outlinesBody.data[0]
+
+    // Generate blog
+    const blogGenRes = await request.post(`/api/v1/jobs/blog`, {
+      headers,
+      data: { outlineId: outline.id }
+    })
+    const blogGenBody = await blogGenRes.json()
+    await waitForJobCompletion(request, blogGenBody.data.jobId, { timeout: 30000 })
+
+    const blogsRes = await request.get(`/api/v1/blogs/${orgId}`, { headers })
+    const blogsBody = await blogsRes.json()
+    const blog = blogsBody.data[0]
+
+    // Verify relationships
+    expect(title.organizationId).toBe(orgId)
+    expect(outline.organizationId).toBe(orgId)
+    expect(outline.titleId).toBe(title.id)
+    expect(blog.organizationId).toBe(orgId)
+    expect(blog.outlineId).toBe(outline.id)
+  })
+
+  test('should handle multiple parallel pipelines', async ({ request }) => {
+    test.slow()
+    const headers = createAuthenticatedContext(testClerkId)
+    
+    // Start two title generation jobs in parallel
+    const titleGen1 = await request.post(`/api/v1/jobs/title`, {
+      headers,
+      data: { keywords: ['Topic A'] }
+    })
+    const titleBody1 = await titleGen1.json()
+
+    const titleGen2 = await request.post(`/api/v1/jobs/title`, {
+      headers,
+      data: { keywords: ['Topic B'] }
+    })
+    const titleBody2 = await titleGen2.json()
+
+    // Both should have different job IDs
+    expect(titleBody1.data.jobId).not.toBe(titleBody2.data.jobId)
+
+    // Both should complete
+    const [job1, job2] = await Promise.all([
+      waitForJobCompletion(request, titleBody1.data.jobId, { timeout: 15000 }),
+      waitForJobCompletion(request, titleBody2.data.jobId, { timeout: 15000 })
+    ])
+
+    expect(job1.status).toBe('COMPLETED')
+    expect(job2.status).toBe('COMPLETED')
+  })
+
+  test('should track all jobs for organization', async ({ request }) => {
+    test.slow()
+    const headers = createAuthenticatedContext(testClerkId)
+    
+    // Generate title (creates 1 job)
+    const titleGenRes = await request.post(`/api/v1/jobs/title`, {
+      headers,
+      data: { keywords: ['Job Tracking'] }
+    })
+    const titleGenBody = await titleGenRes.json()
+    await waitForJobCompletion(request, titleGenBody.data.jobId, { timeout: 15000 })
+
+    // Get all jobs for organization
+    const jobsRes = await request.get(`/api/v1/jobs/${orgId}`, { headers })
+    expect(jobsRes.status()).toBe(200)
+
+    const jobsBody = await jobsRes.json()
+    expect(Array.isArray(jobsBody.data)).toBeTruthy()
+    expect(jobsBody.data.length).toBeGreaterThan(0)
+
+    // All jobs should belong to this org
+    jobsBody.data.forEach((job: any) => {
+      expect(job.organizationId).toBe(orgId)
+    })
+  })
+
+  test('should preserve content through entire pipeline', async ({ request }) => {
+    test.slow()
+    const headers = createAuthenticatedContext(testClerkId)
+    
+    const testKeywords = ['Unique', 'Pipeline', 'Content', 'Test']
+    
+    // Start with specific keywords
+    const titleGenRes = await request.post(`/api/v1/jobs/title`, {
+      headers,
+      data: { keywords: testKeywords }
+    })
+    const titleGenBody = await titleGenRes.json()
+    await waitForJobCompletion(request, titleGenBody.data.jobId, { timeout: 15000 })
+
+    const titlesRes = await request.get(`/api/v1/titles/${orgId}`, { headers })
+    const titlesBody = await titlesRes.json()
+    const titleId = titlesBody.data[0].id
+
+    // Generate full pipeline
+    const outlineGenRes = await request.post(`/api/v1/jobs/outline`, {
+      headers,
+      data: { titleId }
+    })
+    const outlineGenBody = await outlineGenRes.json()
+    await waitForJobCompletion(request, outlineGenBody.data.jobId, { timeout: 20000 })
+
+    const outlinesRes = await request.get(`/api/v1/outlines/${orgId}`, { headers })
+    const outlinesBody = await outlinesRes.json()
+    const outlineId = outlinesBody.data[0].id
+
+    const blogGenRes = await request.post(`/api/v1/jobs/blog`, {
+      headers,
+      data: { outlineId }
+    })
+    const blogGenBody = await blogGenRes.json()
+    await waitForJobCompletion(request, blogGenBody.data.jobId, { timeout: 30000 })
+
+    const blogsRes = await request.get(`/api/v1/blogs/${orgId}`, { headers })
+    const blogsBody = await blogsRes.json()
+    const blog = blogsBody.data[0]
+
+    // Verify content exists and is substantial
+    expect(blog.content).toBeDefined()
+    expect(blog.seoTitle).toBeDefined()
+    expect(blog.metaDescription).toBeDefined()
+    expect(blog.wordCount).toBeGreaterThan(200)
+  })
+})

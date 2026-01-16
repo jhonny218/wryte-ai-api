@@ -4,11 +4,12 @@ import { organizationService } from "../services/organization.service";
 import { userService } from "../services/user.service";
 import { successResponse, createdResponse } from "../utils/response";
 import { NotFoundError, UnauthorizedError } from "../utils/errors";
+import { getUserId } from "../utils/auth";
 
 class OrganizationController {
   async getAll(req: Request, res: Response, next: NextFunction) {
     try {
-      const { userId: clerkId } = getAuth(req)
+      const clerkId = getUserId(req)
       const user = await userService.findByClerkId(clerkId!)
       if (!user) throw new UnauthorizedError('User not found')
       
@@ -21,13 +22,16 @@ class OrganizationController {
 
   async create(req: Request, res: Response, next: NextFunction) {
     try {
-      const auth = getAuth(req)
-      const clerkId = auth.userId!
+      const clerkId = getUserId(req)
+      if (!clerkId) throw new UnauthorizedError('User not authenticated')
       
       // Get or create user if they don't exist yet
       let user = await userService.findByClerkId(clerkId)
       if (!user) {
         // Auto-create user if not exists (useful for first-time organization creation)
+        if (process.env.NODE_ENV === 'test') {
+          throw new NotFoundError('User not found - ensure user is created in test')
+        }
         const { emailAddresses, firstName, lastName } = await import('@clerk/express').then(m => m.clerkClient.users.getUser(clerkId))
         user = await userService.create({
           clerkId,
@@ -47,7 +51,7 @@ class OrganizationController {
 
   async getById(req: Request, res: Response, next: NextFunction) {
     try {
-      const { userId: clerkId } = getAuth(req)
+      const clerkId = getUserId(req)
       const user = await userService.findByClerkId(clerkId!)
       if (!user) throw new UnauthorizedError('User not found')
       
@@ -87,7 +91,7 @@ class OrganizationController {
 
   async update(req: Request, res: Response, next: NextFunction) {
     try {
-      const { userId: clerkId } = getAuth(req)
+      const clerkId = getUserId(req)
       const user = await userService.findByClerkId(clerkId!)
       if (!user) throw new UnauthorizedError('User not found')
       

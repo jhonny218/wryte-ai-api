@@ -1,14 +1,14 @@
 import { Request, Response, NextFunction } from 'express';
-import { getAuth } from '@clerk/express';
 import { userService } from '../services/user.service';
 import { UnauthorizedError } from '../utils/errors';
 import { successResponse } from '../utils/response';
 import { outlineService } from '../services/outline.service';
+import { getUserId } from '../utils/auth';
 
 export class OutlineController {
   async getOutlines(req: Request, res: Response, next: NextFunction) {
     try {
-      const { userId: clerkId } = getAuth(req)
+      const clerkId = getUserId(req)
       const user = await userService.findByClerkId(clerkId!)
       if (!user) throw new UnauthorizedError('User not found')
 
@@ -23,7 +23,7 @@ export class OutlineController {
 
   async updateOutline(req: Request, res: Response, next: NextFunction) {
     try {
-      const { userId: clerkId } = getAuth(req)
+      const clerkId = getUserId(req)
       const user = await userService.findByClerkId(clerkId!)
       if (!user) throw new UnauthorizedError('User not found')
 
@@ -52,7 +52,7 @@ export class OutlineController {
 
   async deleteOutline(req: Request, res: Response, next: NextFunction) {
     try {
-      const { userId: clerkId } = getAuth(req)
+      const clerkId = getUserId(req)
       const user = await userService.findByClerkId(clerkId!)
       if (!user) throw new UnauthorizedError('User not found')
 

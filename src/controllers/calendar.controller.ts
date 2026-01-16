@@ -1,14 +1,14 @@
 import { Request, Response, NextFunction } from 'express';
 import { titleService } from '../services/title.service';
-import { getAuth } from '@clerk/express';
 import { userService } from '../services/user.service';
 import { UnauthorizedError, BadRequestError } from '../utils/errors';
 import { successResponse } from '../utils/response';
+import { getUserId } from '../utils/auth';
 
 export class CalendarController {
   async getCalendarEvents(req: Request, res: Response, next: NextFunction) {
     try {
-      const { userId: clerkId } = getAuth(req)
+      const clerkId = getUserId(req)
       const user = await userService.findByClerkId(clerkId!)
       if (!user) throw new UnauthorizedError('User not found')
       // Read inputs from query string (e.g. ?year=2025&month=02&orgId=...) or params
