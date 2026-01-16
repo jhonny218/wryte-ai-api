@@ -47,7 +47,14 @@ class UserController {
 
   async getByClerkId(req: Request, res: Response, next: NextFunction) {
     try {
-      const { userId } = getAuth(req);
+      // In test mode, get userId from test auth middleware
+      let userId: string | null;
+      if (process.env.NODE_ENV === 'test') {
+        userId = (req as any).auth?.userId || null;
+      } else {
+        const auth = getAuth(req);
+        userId = auth.userId;
+      }
 
       if (!userId) {
         throw new NotFoundError('User not authenticated');

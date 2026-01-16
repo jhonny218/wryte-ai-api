@@ -1,6 +1,7 @@
 node_modules
 # Keep environment variables out of version control
 .env
+.env.test
 
 /generated/prisma
 
@@ -18,3 +19,8 @@ build
 logs
 *.log
 npm-debug.log*
+
+# Playwright
+/test-results/
+/playwright-report/
+/playwright/.cache/
