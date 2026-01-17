@@ -25,11 +25,11 @@ echo "Using database: $DATABASE_URL"
 
 # Generate Prisma Client
 echo "Generating Prisma Client..."
-npx prisma generate
+npx prisma generate --config prisma.config.test.ts
 
-# Reset database using Prisma
+# Reset database using Prisma with test config
 echo "Resetting database schema..."
-npx prisma migrate reset --force
+npx prisma migrate reset --force --config prisma.config.test.ts
 
 echo "✅ Test database setup complete!"
 echo "   All migrations applied to Neon database"

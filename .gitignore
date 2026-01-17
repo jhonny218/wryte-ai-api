@@ -5,6 +5,10 @@ node_modules
 
 /generated/prisma
 
+# tsoa generated files (regenerate with npm run tsoa:gen)
+/src/docs/openapi.json
+/src/routes/generated/
+
 # Planning
 Planning
 

@@ -1,0 +1,71 @@
+{
+  "entryFile": "src/app.ts",
+  "noImplicitAdditionalProperties": "throw-on-extras",
+  "controllerPathGlobs": ["src/controllers/**/*.tsoa.ts"],
+  "spec": {
+    "outputDirectory": "src/docs",
+    "specVersion": 3,
+    "specFileBaseName": "openapi",
+    "basePath": "/api/v1",
+    "name": "Wryte AI API",
+    "version": "1.0.0",
+    "description": "AI-powered content generation platform for organizations",
+    "license": "Proprietary",
+    "contact": {
+      "name": "Wryte AI Support",
+      "email": "support@wryte-ai.com"
+    },
+    "securityDefinitions": {
+      "clerk": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "Clerk authentication token"
+      }
+    },
+    "tags": [
+      {
+        "name": "Health",
+        "description": "Health check endpoints"
+      },
+      {
+        "name": "Organizations",
+        "description": "Organization management"
+      },
+      {
+        "name": "Settings",
+        "description": "Content settings management"
+      },
+      {
+        "name": "Titles",
+        "description": "Blog title management"
+      },
+      {
+        "name": "Outlines",
+        "description": "Blog outline management"
+      },
+      {
+        "name": "Blogs",
+        "description": "Blog content management"
+      },
+      {
+        "name": "Jobs",
+        "description": "Async job management"
+      },
+      {
+        "name": "Calendar",
+        "description": "Content calendar management"
+      }
+    ]
+  },
+  "routes": {
+    "routesDir": "src/routes/generated",
+    "middleware": "express",
+    "authenticationModule": "src/middleware/auth.middleware.ts"
+  },
+  "ignore": [
+    "**/*.spec.ts",
+    "**/*.test.ts",
+    "**/node_modules/**"
+  ]
+}

@@ -3,6 +3,7 @@ import cors from "cors";
 import helmet from "helmet";
 import compression from "compression";
 import { clerkMiddleware } from '@clerk/express'
+import swaggerUi from 'swagger-ui-express';
 
 import { routes } from "./routes"
 import { errorMiddleware } from './middleware/error.middleware'
@@ -10,6 +11,7 @@ import { loggingMiddleware } from './middleware/logging.middleware'
 import { env } from './config/env'
 import { pingDatabase } from './config/database'
 import { serverAdapter } from './config/bullboard'
+import openApiSpec from './docs/openapi.json';
 
 export const app = express();
 
@@ -48,6 +50,19 @@ app.get('/health', async (req, res) => {
 
 // Bull Board UI for queue monitoring
 app.use('/admin/queues', serverAdapter.getRouter())
+
+// API Documentation (Swagger UI)
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(openApiSpec, {
+  customSiteTitle: 'Wryte AI API Documentation',
+  customCss: '.swagger-ui .topbar { display: none }',
+  swaggerOptions: {
+    persistAuthorization: true,
+    displayRequestDuration: true,
+    docExpansion: 'list',
+    filter: true,
+    tryItOutEnabled: true
+  }
+}));
 
 // API routes
 app.use('/api/v1', routes)
