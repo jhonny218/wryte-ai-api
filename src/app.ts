@@ -8,6 +8,7 @@ import swaggerUi from 'swagger-ui-express';
 import { routes } from "./routes"
 import { errorMiddleware } from './middleware/error.middleware'
 import { loggingMiddleware } from './middleware/logging.middleware'
+import { requestIdMiddleware } from './middleware/request-id.middleware'
 import { env } from './config/env'
 import { pingDatabase } from './config/database'
 import { serverAdapter } from './config/bullboard'
@@ -33,7 +34,8 @@ app.use('/api/v1/webhooks', express.raw({ type: 'application/json' }))
 // Clerk middleware
 app.use(clerkMiddleware())
 
-// Logging
+// Request ID & Logging
+app.use(requestIdMiddleware)
 app.use(loggingMiddleware)
 
 // Health check

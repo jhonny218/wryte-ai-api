@@ -1,23 +1,27 @@
-import type { Request, Response, NextFunction } from 'express';
-import { logger } from '../utils/logger';
+import type { Request, Response, NextFunction } from "express";
+import { logger } from "../utils/logger";
 
-export const loggingMiddleware = (req: Request, res: Response, next: NextFunction) => {
+export function loggingMiddleware(req: Request, res: Response, next: NextFunction) {
   const start = Date.now();
 
-  // Log the request immediately
-  // logger.http(`Incoming: ${req.method} ${req.url}`);
-
-  // Log the response when finished
-  res.on('finish', () => {
+  res.on("finish", () => {
     const duration = Date.now() - start;
-    const message = `${req.method} ${req.originalUrl} ${res.statusCode} ${duration}ms`;
+    const log = req.log || logger;
 
     try {
-      logger.http(message);
-    } catch (error) {
+      log.http("Request completed", {
+        method: req.method,
+        url: req.originalUrl,
+        statusCode: res.statusCode,
+        duration,
+        userAgent: req.headers["user-agent"],
+        ip: req.ip,
+        contentLength: res.get("content-length"),
+      });
+    } catch {
       // Silently fail if logger is unavailable
     }
   });
 
   next();
-};
+}
