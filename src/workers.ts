@@ -2,46 +2,55 @@ import { logger } from "./utils/logger";
 import { titleGenerationWorker } from "./workers/title-generation.worker";
 import { outlineGenerationWorker } from "./workers/outline-generation.worker";
 import { blogGenerationWorker } from "./workers/blog-generation.worker";
+import { initializeQueueEvents, closeQueueEvents } from "./workers/queues";
 
 export async function startWorkers() {
-  logger.info("👷 Workers initializing...");
+  logger.info("Workers initializing", { event: "workers_init" });
 
-  // Attach event listeners to monitor worker health
-  titleGenerationWorker.on('active', (job) => {
-    logger.info(`[Job ${job.id}] Processing ${job.name}...`);
+  // Initialize queue event listeners for observability
+  initializeQueueEvents();
+
+  // Log worker error events
+  titleGenerationWorker.on("error", (err) => {
+    logger.error("Title generation worker error", {
+      event: "worker_error",
+      worker: "title-generation",
+      error: err.message,
+    });
   });
 
-  titleGenerationWorker.on('completed', (job) => {
-    logger.info(`[Job ${job.id}] Completed successfully`);
+  outlineGenerationWorker.on("error", (err) => {
+    logger.error("Outline generation worker error", {
+      event: "worker_error",
+      worker: "outline-generation",
+      error: err.message,
+    });
   });
 
-  titleGenerationWorker.on('failed', (job, err) => {
-    logger.error(`[Job ${job?.id}] Failed: ${err.message}`);
+  blogGenerationWorker.on("error", (err) => {
+    logger.error("Blog generation worker error", {
+      event: "worker_error",
+      worker: "blog-generation",
+      error: err.message,
+    });
   });
 
-  outlineGenerationWorker.on('active', (job) => {
-    logger.info(`[Outline Job ${job.id}] Processing ${job.name}...`);
+  logger.info("Workers started", {
+    event: "workers_started",
+    workers: ["title-generation", "outline-generation", "blog-generation"],
   });
+}
 
-  outlineGenerationWorker.on('completed', (job) => {
-    logger.info(`[Outline Job ${job.id}] Completed successfully`);
-  });
+export async function stopWorkers() {
+  logger.info("Workers stopping", { event: "workers_stopping" });
 
-  outlineGenerationWorker.on('failed', (job, err) => {
-    logger.error(`[Outline Job ${job?.id}] Failed: ${err.message}`);
-  });
+  await Promise.all([
+    titleGenerationWorker.close(),
+    outlineGenerationWorker.close(),
+    blogGenerationWorker.close(),
+  ]);
 
-  blogGenerationWorker.on('active', (job) => {
-    logger.info(`[Blog Job ${job.id}] Processing ${job.name}...`);
-  });
+  await closeQueueEvents();
 
-  blogGenerationWorker.on('completed', (job) => {
-    logger.info(`[Blog Job ${job.id}] Completed successfully`);
-  });
-
-  blogGenerationWorker.on('failed', (job, err) => {
-    logger.error(`[Blog Job ${job?.id}] Failed: ${err.message}`);
-  });
-
-  logger.info("👷 Workers started and listening for jobs");
+  logger.info("Workers stopped", { event: "workers_stopped" });
 }

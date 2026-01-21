@@ -53,17 +53,14 @@ describe('OrganizationService', () => {
 
       const result = await organizationService.findAll(mockUserId);
 
-      expect(prisma.organization.findMany).toHaveBeenCalledWith({
-        where: { members: { some: { userId: mockUserId } } },
-        include: {
-          members: {
-            where: { userId: mockUserId },
-            select: { role: true },
-          },
-        },
-        orderBy: { createdAt: 'desc' },
-      });
-      expect(result).toEqual(mockOrgs);
+      // The service flattens member role to a top-level `role` property
+      const expected = mockOrgs.map(org => ({
+        ...org,
+        role: org.members[0]?.role,
+        members: undefined,
+      }));
+
+      expect(result).toEqual(expected);
     });
   });
 

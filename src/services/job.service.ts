@@ -1,5 +1,6 @@
 import { Job, JobStatus, JobType } from "../../generated/prisma/client";
 import { prisma } from "../utils/prisma";
+import { logger } from "../utils/logger";
 
 export class JobService {
   async createJob(
@@ -8,7 +9,7 @@ export class JobService {
     type: JobType,
     input: any
   ): Promise<Job> {
-    return prisma.job.create({
+    const job = await prisma.job.create({
       data: {
         userId,
         organizationId,
@@ -17,6 +18,16 @@ export class JobService {
         input,
       },
     });
+
+    logger.info("Job created", {
+      event: "job_created",
+      jobId: job.id,
+      userId,
+      organizationId,
+      type,
+    });
+
+    return job;
   }
 
   async getJobStatus(jobId: string): Promise<Job | null> {
@@ -25,7 +36,12 @@ export class JobService {
     });
   }
 
-  async updateJobStatus(jobId: string, status: JobStatus, result?: any, error?: string) {
+  async updateJobStatus(
+    jobId: string,
+    status: JobStatus,
+    result?: any,
+    error?: string
+  ) {
     const data: any = { status };
     if (result) data.result = result;
     if (error) data.error = error;
@@ -36,10 +52,20 @@ export class JobService {
       data.completedAt = new Date();
     }
 
-    return prisma.job.update({
+    const job = await prisma.job.update({
       where: { id: jobId },
       data,
     });
+
+    logger.info("Job status updated", {
+      event: "job_status_updated",
+      jobId,
+      status,
+      hasResult: !!result,
+      hasError: !!error,
+    });
+
+    return job;
   }
 }
 

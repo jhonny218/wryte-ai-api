@@ -11,7 +11,12 @@ describe('Auth Middleware', () => {
   let mockNext: NextFunction
 
   beforeEach(() => {
-    mockReq = {}
+    mockReq = {
+      headers: {},
+      path: '/test',
+      method: 'GET',
+      ip: '127.0.0.1',
+    }
     mockRes = {}
     mockNext = jest.fn()
     jest.clearAllMocks()

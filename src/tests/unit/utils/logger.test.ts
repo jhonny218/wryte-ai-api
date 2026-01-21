@@ -6,6 +6,8 @@ jest.mock('winston', () => {
     colorize: jest.fn(() => 'colorize-format'),
     printf: jest.fn(() => 'printf-format'),
     uncolorize: jest.fn(() => 'uncolorize-format'),
+    errors: jest.fn(() => 'errors-format'),
+    json: jest.fn(() => 'json-format'),
   };
   const mTransports = {
     Console: jest.fn(),
@@ -17,6 +19,13 @@ jest.mock('winston', () => {
     info: jest.fn(),
     http: jest.fn(),
     debug: jest.fn(),
+    child: jest.fn(() => ({
+      error: jest.fn(),
+      warn: jest.fn(),
+      info: jest.fn(),
+      http: jest.fn(),
+      debug: jest.fn(),
+    })),
   };
 
   return {

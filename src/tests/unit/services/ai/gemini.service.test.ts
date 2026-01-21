@@ -1,6 +1,7 @@
 import { GeminiService } from '../../../../services/ai/gemini.service';
 import { GoogleGenAI } from '@google/genai';
 import { env } from '../../../../config/env';
+import { logger } from '../../../../utils/logger';
 
 jest.mock('@google/genai');
 jest.mock('../../../../config/env', () => ({
@@ -9,6 +10,7 @@ jest.mock('../../../../config/env', () => ({
     GEMINI_MODEL: 'gemini-1.5-flash',
   },
 }));
+jest.mock('../../../../utils/logger');
 
 describe('GeminiService', () => {
   let geminiService: GeminiService;
@@ -136,28 +138,34 @@ describe('GeminiService', () => {
       const apiError = new Error('API Error');
       mockGenerateContent.mockRejectedValue(apiError);
 
-      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
-
       await expect(geminiService.generateCompletion('Test prompt')).rejects.toThrow(
         'API Error'
       );
 
-      expect(consoleErrorSpy).toHaveBeenCalledWith('Gemini API Error:', apiError);
-
-      consoleErrorSpy.mockRestore();
+      expect(logger.error).toHaveBeenCalledWith(
+        'Gemini API request failed',
+        expect.objectContaining({
+          event: 'gemini_request_error',
+          error: 'API Error',
+        })
+      );
     });
 
     it('should handle network errors', async () => {
       const networkError = new Error('Network timeout');
       mockGenerateContent.mockRejectedValue(networkError);
 
-      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
-
       await expect(geminiService.generateCompletion('Test prompt')).rejects.toThrow(
         'Network timeout'
       );
 
-      consoleErrorSpy.mockRestore();
+      expect(logger.error).toHaveBeenCalledWith(
+        'Gemini API request failed',
+        expect.objectContaining({
+          event: 'gemini_request_error',
+          error: 'Network timeout',
+        })
+      );
     });
   });
 });

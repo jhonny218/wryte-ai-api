@@ -1,6 +1,7 @@
 import { prisma } from "../utils/prisma";
 import { ForbiddenError } from "../utils/errors";
 import { uniqueSlug } from "../utils/slug";
+import { logger } from "../utils/logger";
 
 class OrganizationService {
   async findAll(userId: string) {
@@ -9,46 +10,47 @@ class OrganizationService {
       include: {
         members: {
           where: { userId },
-          select: { role: true }
-        }
+          select: { role: true },
+        },
       },
-      orderBy: { createdAt: 'desc' }
-    })
-    
+      orderBy: { createdAt: "desc" },
+    });
+
     // Flatten role from members array to top-level property
-    return orgs.map(org => ({
+    return orgs.map((org) => ({
       ...org,
       role: org.members[0]?.role,
-      members: undefined // Remove members array from response
-    }))
+      members: undefined, // Remove members array from response
+    }));
   }
 
   async create(userId: string, data: any) {
     // 1. Generate unique slug
-    const slug = await uniqueSlug(
-      data.name,
-      async (slug: string) => {
-        const existingSlug = await prisma.organization.findUnique({ where: { slug } })
-        return !!existingSlug
-      }
-    )
+    const slug = await uniqueSlug(data.name, async (slug: string) => {
+      const existingSlug = await prisma.organization.findUnique({
+        where: { slug },
+      });
+      return !!existingSlug;
+    });
 
     // 2. Prepare content settings data (if provided)
-    const contentSettingsData = data.contentSettings ? {
-      primaryKeywords: data.contentSettings.primaryKeywords,
-      secondaryKeywords: data.contentSettings.secondaryKeywords || [],
-      postingDaysOfWeek: data.contentSettings.postingDaysOfWeek || [],
-      tone: data.contentSettings.tone || null,
-      targetAudience: data.contentSettings.targetAudience || null,
-      industry: data.contentSettings.industry || null,
-      goals: data.contentSettings.goals || [],
-      competitorUrls: data.contentSettings.competitorUrls || [],
-      topicsToAvoid: data.contentSettings.topicsToAvoid || [],
-      preferredLength: data.contentSettings.preferredLength || null,
-    } : {}
+    const contentSettingsData = data.contentSettings
+      ? {
+          primaryKeywords: data.contentSettings.primaryKeywords,
+          secondaryKeywords: data.contentSettings.secondaryKeywords || [],
+          postingDaysOfWeek: data.contentSettings.postingDaysOfWeek || [],
+          tone: data.contentSettings.tone || null,
+          targetAudience: data.contentSettings.targetAudience || null,
+          industry: data.contentSettings.industry || null,
+          goals: data.contentSettings.goals || [],
+          competitorUrls: data.contentSettings.competitorUrls || [],
+          topicsToAvoid: data.contentSettings.topicsToAvoid || [],
+          preferredLength: data.contentSettings.preferredLength || null,
+        }
+      : {};
 
     // 3. Create Org + Member + Settings (Transaction)
-    return await prisma.$transaction(async (tx) => {
+    const org = await prisma.$transaction(async (tx) => {
       const org = await tx.organization.create({
         data: {
           name: data.name,
@@ -59,24 +61,34 @@ class OrganizationService {
           members: {
             create: {
               userId,
-              role: 'OWNER'
-            }
+              role: "OWNER",
+            },
           },
           contentSettings: {
-            create: contentSettingsData
-          }
+            create: contentSettingsData,
+          },
         },
         include: {
           contentSettings: true,
           members: {
             where: { userId },
-            select: { role: true }
-          }
-        }
-      })
+            select: { role: true },
+          },
+        },
+      });
 
-      return org
-    })
+      return org;
+    });
+
+    logger.info("Organization created", {
+      event: "organization_created",
+      organizationId: org.id,
+      slug: org.slug,
+      userId,
+      hasContentSettings: !!data.contentSettings,
+    });
+
+    return org;
   }
 
   async findById(userId: string, orgId: string) {
@@ -84,26 +96,32 @@ class OrganizationService {
       where: { id: orgId },
       include: {
         contentSettings: true,
-      }
-    })
+      },
+    });
 
-    if (!org) return null
+    if (!org) return null;
 
-    // Check mebmbership
+    // Check membership
     const isMember = await prisma.organizationMember.findUnique({
       where: {
         organizationId_userId: {
           organizationId: orgId,
-          userId
-        }
-      }
-    })
+          userId,
+        },
+      },
+    });
 
     if (!isMember) {
-      throw new ForbiddenError('You are not a member of this organization')
+      logger.warn("Organization access denied", {
+        event: "organization_access_denied",
+        organizationId: orgId,
+        userId,
+        reason: "not_member",
+      });
+      throw new ForbiddenError("You are not a member of this organization");
     }
 
-    return { ...org, role: isMember.role }
+    return { ...org, role: isMember.role };
   }
 
   async findBySlug(userId: string, slug: string) {
@@ -111,26 +129,33 @@ class OrganizationService {
       where: { slug },
       include: {
         contentSettings: true,
-      }
-    })
+      },
+    });
 
-    if (!org) return null
+    if (!org) return null;
 
     // Check membership
     const isMember = await prisma.organizationMember.findUnique({
       where: {
         organizationId_userId: {
           organizationId: org.id,
-          userId
-        }
-      }
-    })
+          userId,
+        },
+      },
+    });
 
     if (!isMember) {
-      throw new ForbiddenError('You are not a member of this organization')
+      logger.warn("Organization access denied", {
+        event: "organization_access_denied",
+        organizationId: org.id,
+        slug,
+        userId,
+        reason: "not_member",
+      });
+      throw new ForbiddenError("You are not a member of this organization");
     }
 
-    return { ...org, role: isMember.role }
+    return { ...org, role: isMember.role };
   }
 
   async update(userId: string, orgId: string, data: any) {
@@ -139,19 +164,36 @@ class OrganizationService {
       where: {
         organizationId_userId: {
           organizationId: orgId,
-          userId
-        }
-      }
-    })
+          userId,
+        },
+      },
+    });
 
-    if (!membership || !['OWNER', 'ADMIN'].includes(membership.role)) {
-      throw new ForbiddenError('You do not have permission to update this organization')
+    if (!membership || !["OWNER", "ADMIN"].includes(membership.role)) {
+      logger.warn("Organization update denied", {
+        event: "organization_update_denied",
+        organizationId: orgId,
+        userId,
+        role: membership?.role || "none",
+      });
+      throw new ForbiddenError(
+        "You do not have permission to update this organization"
+      );
     }
 
-    return await prisma.organization.update({
+    const org = await prisma.organization.update({
       where: { id: orgId },
-      data
-    })
+      data,
+    });
+
+    logger.info("Organization updated", {
+      event: "organization_updated",
+      organizationId: orgId,
+      userId,
+      updatedFields: Object.keys(data),
+    });
+
+    return org;
   }
 }
 

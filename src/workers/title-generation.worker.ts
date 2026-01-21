@@ -1,18 +1,30 @@
-import { Worker, Job } from 'bullmq';
-import { connection } from '../config/redis';
-import { QueueName, TitleGenerationJobProtocol } from '../types/jobs';
-import { promptService } from '../services/ai/prompt.service';
-import { geminiService } from '../services/ai/gemini.service';
-import { parserService } from '../services/ai/parser.service';
-import { titleService } from '../services/title.service';
-import { jobService } from '../services/job.service';
-import { JobStatus, JobType } from '../../generated/prisma/client';
+import { Worker, Job } from "bullmq";
+import { connection } from "../config/redis";
+import { QueueName, TitleGenerationJobProtocol } from "../types/jobs";
+import { promptService } from "../services/ai/prompt.service";
+import { geminiService } from "../services/ai/gemini.service";
+import { parserService } from "../services/ai/parser.service";
+import { titleService } from "../services/title.service";
+import { jobService } from "../services/job.service";
+import { JobStatus } from "../../generated/prisma/client";
+import { logger } from "../utils/logger";
 
 export const titleGenerationWorker = new Worker<TitleGenerationJobProtocol>(
   QueueName.TITLE_GENERATION,
   async (job: Job<TitleGenerationJobProtocol>) => {
     const { userId, organizationId, dates } = job.data;
     const dbJobIdFromPayload = (job.data as any).jobId;
+    const startTime = Date.now();
+
+    const jobLogger = logger.child({
+      worker: "title-generation",
+      jobId: job.id,
+      dbJobId: dbJobIdFromPayload,
+      userId,
+      organizationId,
+    });
+
+    jobLogger.info("Job started", { event: "worker_job_start", dateCount: dates.length });
 
     if (dbJobIdFromPayload) {
       await jobService.updateJobStatus(dbJobIdFromPayload, JobStatus.PROCESSING);
@@ -20,6 +32,7 @@ export const titleGenerationWorker = new Worker<TitleGenerationJobProtocol>(
 
     try {
       // 1. Fetch Content Settings
+      jobLogger.debug("Fetching content settings");
       const settings = await titleService.getContentSettings(organizationId);
       if (!settings) throw new Error("Content settings not found.");
 
@@ -28,20 +41,17 @@ export const titleGenerationWorker = new Worker<TitleGenerationJobProtocol>(
       if (titlesToGenerate === 0) throw new Error("No dates provided.");
 
       const prompt = promptService.generateTitlePrompt(settings, titlesToGenerate);
-      console.log("Prompt:", prompt);
+      jobLogger.debug("Prompt generated", { promptLength: prompt.length });
 
       // 3. Call Gemini
+      jobLogger.debug("Calling Gemini API");
       const gptResponse = await geminiService.generateCompletion(prompt);
-      console.log("GPT Response:", gptResponse);
 
       // 4. Parse Response
       const titles = parserService.parseTitleResponse(gptResponse);
-      console.log("Parsed Titles:", titles);
+      jobLogger.debug("Response parsed", { titleCount: titles.length });
 
-      // 5. Save to DB - assigning each title a specific date from the list
-      // Note: titles.length might differ from dates.length if AI hallucinates count.
-      // We'll iterate up to the minimum of both.
-
+      // 5. Save to DB
       const count = Math.min(titles.length, dates.length);
       const titlesToSave: { title: string; date: Date }[] = [];
 
@@ -51,31 +61,38 @@ export const titleGenerationWorker = new Worker<TitleGenerationJobProtocol>(
         if (titleText && dateString) {
           titlesToSave.push({
             title: titleText,
-            date: new Date(dateString)
+            date: new Date(dateString),
           });
         }
       }
 
-      // We need to update titleService to handle saving individual titles with specific dates
-      // OR we just loop here. `titleService.createTitles` currently takes `titles array` and `ONE date`.
-      // We should probably loop and create them, or update `createTitles` to accept objects.
-
-      // Let's rely on a new method or modifications. 
-      // For now, I will modify `createTitles` call in `title.service.ts` next to handle this structure 
-      // OR just call `create` individually here? Batch insert is better.
-      // Actually, I'll update the worker first, then I MUST update the service.
-
       await titleService.createTitlesWithDates(organizationId, titlesToSave);
 
-      // 7. Update Job Status
+      // 6. Update Job Status
       if (dbJobIdFromPayload) {
-        await jobService.updateJobStatus(dbJobIdFromPayload, JobStatus.COMPLETED, { count: titlesToSave.length, titles: titlesToSave });
+        await jobService.updateJobStatus(dbJobIdFromPayload, JobStatus.COMPLETED, {
+          count: titlesToSave.length,
+          titles: titlesToSave,
+        });
       }
 
-      return { success: true, count: titlesToSave.length };
+      const duration = Date.now() - startTime;
+      jobLogger.info("Job completed", {
+        event: "worker_job_complete",
+        duration,
+        titlesCreated: titlesToSave.length,
+      });
 
+      return { success: true, count: titlesToSave.length };
     } catch (error: any) {
-      console.error('Title Generation Worker Error:', error);
+      const duration = Date.now() - startTime;
+      jobLogger.error("Job failed", {
+        event: "worker_job_error",
+        duration,
+        error: error.message,
+        stack: error.stack,
+      });
+
       if (dbJobIdFromPayload) {
         await jobService.updateJobStatus(dbJobIdFromPayload, JobStatus.FAILED, undefined, error.message);
       }
@@ -84,12 +101,11 @@ export const titleGenerationWorker = new Worker<TitleGenerationJobProtocol>(
   },
   {
     connection,
-    concurrency: 5, // Process 5 jobs at a time
-    // Dramatically reduce polling frequency for Upstash free tier
-    lockDuration: 30000, // 30 seconds - how long to hold job lock
-    lockRenewTime: 15000, // 15 seconds - renew lock interval
-    stalledInterval: 30000, // Check for stalled jobs every 30s
-    maxStalledCount: 1, // Max times a job can be recovered from stalled state
+    concurrency: 5,
+    lockDuration: 30000,
+    lockRenewTime: 15000,
+    stalledInterval: 30000,
+    maxStalledCount: 1,
     autorun: true,
   }
 );
