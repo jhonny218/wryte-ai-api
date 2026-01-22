@@ -89,7 +89,7 @@ describe('JobsController (TSOA)', () => {
 
   describe('createOutlineGenerationJob', () => {
     const requestBody = {
-      titleId: 'title-123',
+      blogTitleId: 'title-123',
       additionalContext: 'Some context',
     };
 
@@ -146,7 +146,7 @@ describe('JobsController (TSOA)', () => {
 
   describe('createBlogGenerationJob', () => {
     const requestBody = {
-      outlineId: 'outline-123',
+      blogOutlineId: 'outline-123',
       additionalInstructions: 'Make it engaging',
     };
 
