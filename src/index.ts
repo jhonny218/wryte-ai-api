@@ -1,3 +1,6 @@
+// OpenTelemetry must be initialized before any other imports
+import "./instrumentation";
+
 import "dotenv/config";
 import { startServer } from "./server";
 import { startWorkers } from "./workers";

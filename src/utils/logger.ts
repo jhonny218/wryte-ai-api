@@ -1,5 +1,6 @@
 import winston from "winston";
 import { env } from "../config/env";
+import { trace, context } from "@opentelemetry/api";
 
 const levels = {
   error: 0,
@@ -24,21 +25,36 @@ const colors = {
 
 winston.addColors(colors);
 
+// Custom format to inject OpenTelemetry trace context
+const otelFormat = winston.format((info) => {
+  const span = trace.getSpan(context.active());
+  if (span) {
+    const spanContext = span.spanContext();
+    info.traceId = spanContext.traceId;
+    info.spanId = spanContext.spanId;
+    info.traceFlags = spanContext.traceFlags;
+  }
+  return info;
+});
+
 // Development format: colored, human-readable
 const devFormat = winston.format.combine(
   winston.format.timestamp({ format: "YYYY-MM-DD HH:mm:ss:ms" }),
+  otelFormat(),
   winston.format.colorize({ all: true }),
   winston.format.printf((info) => {
-    const { timestamp, level, message, requestId, ...meta } = info;
+    const { timestamp, level, message, requestId, traceId, ...meta } = info;
     const reqIdStr = requestId ? ` [${requestId}]` : "";
+    const traceStr = traceId ? ` [trace:${String(traceId).slice(0, 8)}]` : "";
     const metaStr = Object.keys(meta).length ? ` ${JSON.stringify(meta)}` : "";
-    return `${timestamp}${reqIdStr} ${level}: ${message}${metaStr}`;
+    return `${timestamp}${reqIdStr}${traceStr} ${level}: ${message}${metaStr}`;
   })
 );
 
 // Production format: JSON for log aggregators
 const prodFormat = winston.format.combine(
   winston.format.timestamp(),
+  otelFormat(),
   winston.format.errors({ stack: true }),
   winston.format.json()
 );
@@ -46,6 +62,7 @@ const prodFormat = winston.format.combine(
 // File format: uncolorized with JSON for structured logging
 const fileFormat = winston.format.combine(
   winston.format.timestamp(),
+  otelFormat(),
   winston.format.errors({ stack: true }),
   winston.format.uncolorize(),
   winston.format.json()

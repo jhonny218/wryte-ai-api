@@ -26,6 +26,17 @@ const envSchema = z.object({
   // Optional
   LOG_LEVEL: z.enum(['error', 'warn', 'info', 'debug']).default('info'),
   RUN_WORKERS: z.string().default('false').transform(val => val === 'true'),
+
+  // OpenTelemetry - Grafana (optional - disabled if not set)
+  OTEL_ENABLED: z.string().default('false').transform(val => val === 'true'),
+  OTEL_EXPORTER_OTLP_ENDPOINT: z.string().optional(),
+  OTEL_EXPORTER_OTLP_HEADERS: z.string().optional(),
+  OTEL_SERVICE_NAME: z.string().default('wryte-api'),
+  OTEL_SERVICE_VERSION: z.string().default('1.0.0'),
+
+  // OpenTelemetry - New Relic (optional)
+  NEW_RELIC_OTLP_ENDPOINT: z.string().optional(),
+  NEW_RELIC_LICENSE_KEY: z.string().optional(),
 })
 
 export type Env = z.infer<typeof envSchema>

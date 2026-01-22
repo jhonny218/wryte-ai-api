@@ -1,6 +1,8 @@
 // Mock winston before importing logger
 jest.mock('winston', () => {
-  const mFormat = {
+  // Create a function that also has properties (for custom format creation)
+  const formatFn = jest.fn(() => jest.fn(() => 'custom-format'));
+  const mFormat = Object.assign(formatFn, {
     combine: jest.fn(() => 'combined-format'),
     timestamp: jest.fn(() => 'timestamp-format'),
     colorize: jest.fn(() => 'colorize-format'),
@@ -8,7 +10,7 @@ jest.mock('winston', () => {
     uncolorize: jest.fn(() => 'uncolorize-format'),
     errors: jest.fn(() => 'errors-format'),
     json: jest.fn(() => 'json-format'),
-  };
+  });
   const mTransports = {
     Console: jest.fn(),
     File: jest.fn(),
@@ -35,6 +37,16 @@ jest.mock('winston', () => {
     addColors: jest.fn(),
   };
 });
+
+// Mock OpenTelemetry API
+jest.mock('@opentelemetry/api', () => ({
+  trace: {
+    getSpan: jest.fn(() => null),
+  },
+  context: {
+    active: jest.fn(() => ({})),
+  },
+}));
 
 // Mock the env module
 jest.mock('../../../config/env', () => ({
