@@ -18,10 +18,17 @@ export const app = express();
 
 // Security & Performance
 app.use(helmet())
-app.use(cors({
-  origin: [env.FRONTEND_URL, 'http://localhost:5173'],
-  credentials: true
-}))
+// Normalize FRONTEND_URL to avoid mismatches from trailing slashes
+const normalizeOrigin = (u?: string) => (u ? u.replace(/\/$/, '') : undefined);
+const allowedOrigins = [normalizeOrigin(env.FRONTEND_URL), 'http://localhost:5173'].filter(
+  (v): v is string => Boolean(v)
+);
+app.use(
+  cors({
+    origin: allowedOrigins,
+    credentials: true,
+  })
+);
 app.use(compression())
 
 // Body parsing
