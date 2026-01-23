@@ -2,11 +2,40 @@ import IORedis from "ioredis";
 import { env } from "./env";
 import { logger } from "../utils/logger";
 
-const connection = new IORedis(env.REDIS_URL, {
+// Parse URL and detect TLS needs. Some providers (eg. Upstash) accept TLS on port 6379
+const redisUrl = env.REDIS_URL;
+let redisOptions: any = {
   maxRetriesPerRequest: null, // Required by BullMQ
-  enableReadyCheck: false, // Skip ready check to reduce requests
-  lazyConnect: true, // Don't connect until first command (reduces initial requests)
-});
+  enableReadyCheck: true,
+  lazyConnect: false, // connect immediately and keep connection alive
+  // Exponential backoff for reconnect attempts
+  retryStrategy(times: number) {
+    return Math.min(10000, Math.pow(2, times) * 100);
+  },
+  reconnectOnError(err: any) {
+    const code = err?.code;
+    return code === 'ECONNRESET' || code === 'EPIPE' || code === 'ETIMEDOUT';
+  },
+};
+
+try {
+  if (redisUrl) {
+    const parsed = new URL(redisUrl);
+    const protocol = parsed.protocol; // redis: or rediss:
+    const host = parsed.hostname || '';
+
+    const explicitTls = (protocol === 'rediss:') || env.REDIS_TLS === 'true' || host.includes('upstash.io');
+    if (explicitTls) {
+      // ioredis accepts a `tls` option to enable TLS over the socket
+      redisOptions.tls = { rejectUnauthorized: true };
+    }
+  }
+} catch (err) {
+  // If URL parsing fails, continue with default options and let connection emit errors
+  logger.warn('Failed to parse REDIS_URL for TLS detection', { event: 'redis_parse_warn', error: (err as any).message });
+}
+
+const connection = new IORedis(redisUrl, redisOptions);
 
 // Log connection lifecycle events
 connection.on("connect", () => {

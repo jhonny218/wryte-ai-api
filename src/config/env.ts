@@ -10,6 +10,7 @@ const envSchema = z.object({
 
   // Redis
   REDIS_URL: z.url(),
+  REDIS_TLS: z.string().optional(),
 
   // Clerk
   CLERK_SECRET_KEY: z.string(),
